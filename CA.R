@@ -7,6 +7,7 @@
 # - Make Grid an object so multiple grids can be run at the same time
 # - Implement multithreading support. One grid per core.
 # - Generate 7 mutations per epoch. Currently generating one.
+# - Split code by classes(cell and grid)
 #
 # Model:
 # - Can a cell that acquire a mutation in an epoch, transfer it to a newly 
