@@ -18,8 +18,18 @@
 #   transitions, and the curve shapes for latent and final phases
 
 ############# Install Packages ############# 
-# install.packages("plotly")
-# install.packages("hash")
+### install.packages("plotly")
+### install.packages("hash")
+###########################################
+
+############# Install Packages ############# 
+#install.packages(devtools)
+#install.packages("viridis", type="source")
+#devtools::install_github("hadley/ggplot2")
+#devtools::install_github("ropensci/plotly")
+#install.packages("hash")
+###########################################
+
 
 ############# Libraries ############# 
 library(plotly)
