@@ -1,15 +1,14 @@
 ############# To Do List ############# 
 # Programming:
-# - Implement drugs
-# - Implement drug resistance 
 # - Add saving of plots programmatically
 # - Implement deep copy for grids. Importatnt for tranfer or mutations. 
 # - Make Grid an object so multiple grids can be run at the same time
 # - Implement multithreading support. One grid per core.
-# - Generate 7 mutations per epoch. Currently generating one.
 # - Split code by classes(cell and grid)
 #
 # Model:
+# - When is drug therapy started? Currently starts at week 20 as in the
+#   original paper.
 # - Can a cell that acquire a mutation in an epoch, transfer it to a newly 
 #   infected cell in the same epoch?
 # - Improve decision logic as to which infected cell is passing on mutations
@@ -29,19 +28,22 @@ library(plyr)
 
 ############# CA States and Parameters ###############
 # States
-# State 1: H:   Healthy          (Color- Green)
-# State 3: I_1: Infected  		   (Color- Cyan)
-# State 2: D:   Dead             (Color- Black)
+# State 1: H:   Healthy         
+# State 3: I_1: Infected  		  
+# State 2: D:   Dead            
 
 # Parameters
-n = 100;            # grid dimensions n x n
-P_HIV = 0.05;       # initial grid will have P_hiv acute infected cells
-P_i = 0.997;     	  # probability of infection by neighbors
-P_v = 0.00001;      # probability of infection by random viral contact
-P_rep = 0.99;       # probability of dead cell being replaced by healthy
-P_repI = 0.00001;   # probability of dead cell being replaced by infected
-tau = 4;            # time delay for an I cell to become D  
-totalsteps = 40;   # total number of weeks of simulation to be performed
+n = 100;                        # grid dimensions n x n
+P_HIV = 0.05;                   # initial grid will have P_hiv acute infected cells
+P_i = 0.997;             	      # probability of infection by neighbors
+P_v = 0.00001;                  # probability of infection by random viral contact
+P_rep = 0.99;                   # probability of dead cell being replaced by healthy
+P_repI = 0.00001;               # probability of dead cell being replaced by infected
+tau = 4;                        # time delay for an I cell to become D  
+hiv_total_aa = 881;             # Estimated total number of amino acids of the HIV-1 proteinome
+totalsteps = 40;                # total number of weeks of simulation to be performed
+base_drug_efficiency = 0.333    # base probability that the triple cocktail will kill and infected cell
+start_of_therapy = 20           # epoch at which to start drug therapy
 
 # Vector of possible amino-acids 
 aa = c("A", "R", "N", "D", "C", "Q", "E", 
@@ -52,6 +54,31 @@ aa = c("A", "R", "N", "D", "C", "Q", "E",
 savesteps = c(3, 7, 11, 15, 20, 25, 50, 100, 150, 
               200, 250, 300, 350, 400, 450, 500)
 
+############# Drug resistance-conferring mutations ############# 
+#Drugs
+abacavir_list = list("65" = c("R", "E", "N"), "74" = "V", "115" = "F", "184" = "V")
+
+# Locations are what is on the paper+230. 230 is the esitmate length of the previous protein in the sequence
+efavirenz_list = list("330" = "I", "331" = "P", "333" = c("N", "S"), "336" = "M", 
+                      "338" = "I", "411" = c("C", "I"), "418" = "L", "420" = c("S", "A"), 
+                      "455" = "H", "460" = "L")
+
+# Locations are what is on the paper + (230 + 230). 230 is the esitmate length of the previous protein in the sequence
+darunavir_list = list("471" = "I", "492" = "I", "493" = "F", "507" = "V", "510" = "V", 
+                      "514" = c("M", "L"), "534" = "P", "536" = "V", "544" = "V", 
+                      "549" = "V")
+
+# Build a hashmap of resistance sites
+resistanceSites_list = append(abacavir_list, efavirenz_list)
+resistanceSites_list = append(resistanceSites_list, darunavir_list)
+resistanceSites_env = list2env(resistanceSites_list)
+
+# Remove unused lists
+remove(abacavir_list)
+remove(efavirenz_list)
+remove(darunavir_list)
+remove(resistanceSites_list)
+
 ############# Cell Class Definition and Methods ###############
 cell <- setClass(
   # Set the name for the class
@@ -61,13 +88,15 @@ cell <- setClass(
   slots = c(
     state = "numeric",
     infected_epochs = "numeric",
-    mutations = "hash"
+    mutations = "hash",
+    resistance = "numeric"
   ),
   
   # Set the default values for the slots.
   prototype=list(
     state = 1,
-    infected_epochs = 0
+    infected_epochs = 0,
+    resistance = 0
   )
 )
 
@@ -137,7 +166,6 @@ setMethod(f = "getMutations", signature = "cell",
 grid <- matrix( sapply(1:(n*n), function(x){
                                             new("cell",
                                             state = ifelse(runif(1)<= P_HIV, 3, 1),
-                                            infected_epochs = 0,
                                             mutations = hash())
                                             }), n, n)
 
@@ -210,33 +238,48 @@ while(timestep <= totalsteps){
  	 		        nextgrid[[x,y]]@mutations = grid[[x_c, y_c]]@mutations
  	 		      }
  	 		      next
- 	 		    }
+ 	 		    }#End Rule 1
   
  	 		    
     		  # Rule 2 a and b
           # If the cell is in I state, the viral genome is subject to 
  	 		    # mutations. Mutations occur at a rate of 1/day or 7/epoch (2.a)
- 	 		    # If a cell has been in this state for tau timesteps, the cell
- 	 		    # becomes D state (dead). In this case the accumulated mutations
- 	 		    # are lost (2.b) 
+ 	 		    # If a cell has been in this state for tau timesteps or does not 
+ 	 		    # have sufficient drug resistance, the cell becomes D state (dead). 
+ 	 		    # In this case the accumulated mutations are lost (2.b) 
           if((grid[[x,y]]@state == 3)){
               nextgrid[[x,y]]@infected_epochs = grid[[x,y]]@infected_epochs+1
+              drug_efficiency = ifelse(timestep >= start_of_therapy, 
+                                       + base_drug_efficiency * (3 - grid[[x,y]]@resistance), 0) 
               
-              # Randomly genearate a mutation site, and a mutation amino acid. 
-              mutation_site = sample(1:3333,1)
-              mutation_aa = aa[sample(1:20, 1)]
-              
-              # Assign the mutation to a hashmap.
-              nextgrid[[x,y]]@mutations[[as.character(mutation_site)]] = mutation_aa
-              
-              # Reset epochs to 0 and clear mutations once a cell dies.
-              if(grid[[x,y]]@infected_epochs == tau){
-                  nextgrid[[x,y]]@state = 2
-                  nextgrid[[x,y]]@infected_epochs = 0
-                  clear(nextgrid[[x,y]]@mutations)
-              }
+              # Kill cell if it has lived enough epochs or drug takes over
+              if((grid[[x,y]]@infected_epochs == tau) || (runif(1) <= drug_efficiency)){
+                nextgrid[[x,y]]@state = 2
+                nextgrid[[x,y]]@infected_epochs = 0
+                
+                # If a cell dies, its mutations are lost
+                clear(nextgrid[[x,y]]@mutations)
+              }else{
+                # If a cell will live to the next epoch
+                for(i in 1:7){
+                  # Randomly genearate a mutation site, and a mutation amino acid. 
+                  mutation_site = sample(1:hiv_total_aa,1)
+                  mutation_aa = aa[sample(1:20, 1)]
+                  
+                  # Assign the mutation to a hashmap.
+                  nextgrid[[x,y]]@mutations[[as.character(mutation_site)]] = mutation_aa
+                }
+                # If the mutation is at a drug resistance-confering location, 
+                # increase the infected cell resistance attribute.
+                potential_resistance = resistanceSites_env[[as.character(mutation_site)]]
+                if(!is.null(potential_resistance)){
+                    if(mutation_aa %in% potential_resistance){
+                      nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance+1
+                    }
+                }
+              }#End else
               next
-          }
+          }#End Rule 2
 
 		      # Rule 3 a and b
           # If the cell is in D state, then the cell will become H state
@@ -245,7 +288,7 @@ while(timestep <= totalsteps){
           if(grid[[x,y]]@state == 2 && runif(1) <= P_rep){
               nextgrid[[x,y]]@state = ifelse(runif(1) <= P_repI, 3, 1)
               next
-          }
+          }#End Rule 3
  	 		    
  	 		 } #End inner for loop
   	} #End outer for loop
