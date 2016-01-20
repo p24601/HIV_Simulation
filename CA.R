@@ -140,17 +140,21 @@ setMethod(f = "getResistance", signature = "cell",
 # State 2: D:   Dead            
 
 # Parameters
-n = 5;                         # grid dimensions n x n
-P_HIV = 0.05;                   # initial grid will have P_hiv acute infected cells
-P_i = 0.997;             	      # probability of infection by neighbors
-P_v = 0.00001;                  # probability of infection by random viral contact
-P_rep = 0.99;                   # probability of dead cell being replaced by healthy
-P_repI = 0.00001;               # probability of dead cell being replaced by infected
-tau = 4;                        # time delay for an I cell to become D  
-hiv_total_aa = 881;             # Estimated total number of amino acids of the HIV-1 proteinome
-totalsteps = 60;                # total number of weeks of simulation to be performed
-base_drug_efficiency = 0.333    # base probability that the triple cocktail will kill and infected cell
+n = 100                         # grid dimensions n x n
+P_HIV = 0.05                    # initial grid will have P_hiv acute infected cells
+P_i = 0.997/7             	      # probability of infection by neighbors
+P_v = 0.00001/7                   # probability of infection by random viral contact
+P_rep = 0.99/7                    # probability of dead cell being replaced by healthy
+tau = 4                         # time delay for an I cell to become D  
+hiv_total_aa = 2876             # Estimated total number of amino acids of the HIV-1 proteinome
+base_drug_efficiency = 0.30     # base probability that the triple cocktail will kill and infected cell
 start_of_therapy = 20           # epoch at which to start drug therapy
+totalsteps = 100                 # total number of weeks of simulation to be performed
+resiliance = 10                 # number of epochs before the start of phase 2 of infection
+
+# Immune system parameters
+is_capacity = 100 + (resiliance/totalsteps)
+fatigue_ir = (is_capacity/totalsteps)
 
 # Vector of possible amino-acids 
 aa = c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", 
@@ -243,8 +247,9 @@ while(timestep <= totalsteps){
  	 		        # indices and pass mutation map to the infected cell. If infection is
  	 		        # coming from a remote cell, pick a random infected cell from the CA. 
  	 		        if (c2){
- 	 		          x_c = x + position[[1,1]]
- 	 		          y_c = y + position[[1,2]]
+ 	 		          r = sample(1:nrow(position),1)
+ 	 		          x_c = x + position[[r,1]]
+ 	 		          y_c = y + position[[r,2]]
  	 		        }else{
  	 		          stateGrid[,] = sapply(grid[,], function(x) getState(x))
  	 		          position = which(stateGrid[,] == 3, arr.ind = TRUE)
@@ -253,6 +258,26 @@ while(timestep <= totalsteps){
  	 		          y_c = position[[r,2]]
  	 		        }
  	 		        list2env(as.list.environment(grid[[x_c,y_c]]@mutations, all.names = TRUE),nextgrid[[x,y]]@mutations)
+ 	 		        
+ 	 		        # Generate mutation and save it in the cell mutations hashmap.
+ 	 		        mutation_site = sample(1:hiv_total_aa,1)
+ 	 		        mutation_aa = aa[sample(1:20, 1)]
+ 	 		        nextgrid[[x,y]]@mutations[[as.character(mutation_site)]] = mutation_aa
+ 	 		        
+ 	 		        # If the mutation occurs at a drug resistance-conferring site, check if the
+ 	 		        # amino acid it is mutating to grants resistance. If yes, increase cell 
+ 	 		        # resistance count, otherwise, decrease it.
+ 	 		        potential_resistance = resistanceSites_env[[as.character(mutation_site)]]
+ 	 		        if(!is.null(potential_resistance)){
+ 	 		          present = mutation_aa %in% potential_resistance
+ 	 		          
+ 	 		          if (present){
+ 	 		            nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance+1
+ 	 		            
+ 	 		          }else if (!present && (nextgrid[[x,y]]@resistance > 0)){
+ 	 		            nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance-1
+ 	 		          }
+ 	 		        }
  	 		      }
  	 		      next
  	 		    }#End Rule 1
@@ -273,8 +298,7 @@ while(timestep <= totalsteps){
               # cell to be resistant to the 3 drugs begin employed in the triple cocktail. Further 
               # succesful mutations are accounted for, but not used to increase cell fitness further.
               cell_resistance = ifelse(grid[[x,y]]@resistance <= 2, grid[[x,y]]@resistance, 3)
-              drug_efficiency = ifelse(timestep >= start_of_therapy, 
-                                       + base_drug_efficiency * (3 - cell_resistance), 0) 
+              drug_efficiency = ifelse(timestep >= start_of_therapy, (base_drug_efficiency * (3 - cell_resistance)), 0) 
               
               # Kill cell if it has lived enough epochs or drug takes over
               if((grid[[x,y]]@infected_epochs >= tau) || (runif(1) <= drug_efficiency)){
@@ -286,29 +310,6 @@ while(timestep <= totalsteps){
                 
               }else{
                 nextgrid[[x,y]]@state = 3
-                # If a cell will live to the next epoch, assign new mutations
-                for(i in 1:7){
-                  # Generate mutation and save it in the cell mutations hashmap.
-                  mutation_site = sample(1:hiv_total_aa,1)
-                  mutation_aa = aa[sample(1:20, 1)]
-                  nextgrid[[x,y]]@mutations[[as.character(mutation_site)]] = mutation_aa
-                  
-                  # If the mutation occurs at a drug resistance-conferring site, check if the
-                  # amino acid it is mutating to grants resistance. If yes, increase cell 
-                  # resistance count, otherwise, decrease it.
-                  potential_resistance = resistanceSites_env[[as.character(mutation_site)]]
-                  if(!is.null(potential_resistance)){
-                      present = mutation_aa %in% potential_resistance
-                      
-                      if (present){
-                        nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance+1
-                      
-                      }else if (!present && (nextgrid[[x,y]]@resistance > 0)){
-                        nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance-1
-                      }
-                  }
-                  
-                }#End for loop
               }#End else
               next
           }#End Rule 2
@@ -317,7 +318,8 @@ while(timestep <= totalsteps){
           # If the cell is in D state, then the cell will become H state
           # with probability P_rep 
  	 		    if(grid[[x,y]]@state == 2){ 
-   	 		      if(runif(1) <= P_rep){
+ 	 		        strain = (is_capacity - (fatigue_ir*timestep))/100
+   	 		      if(runif(1) <= (P_rep*strain)){
    	 		        nextgrid[[x,y]]@state = 1
    	 		      }else{
    	 		        nextgrid[[x,y]]@state = 2
@@ -341,7 +343,7 @@ while(timestep <= totalsteps){
   	infectedEpochs_count[timestep,0] = sum(infectedEpochsGrid[] == 0)
   	infectedEpochs_count[timestep,1] = sum(infectedEpochsGrid[] == 1)
   	infectedEpochs_count[timestep,2] = sum(infectedEpochsGrid[] == 2)
-  	infectedEpochs_count[timestep,3] = sum(infectedEpochsGrid[] == 3)
+  	infectedEpochs_count[timestep,3] = sum(infectedEpochsGrid[] >= 3)
   	
   	resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
   	resistance_count[timestep,1] = sum(resistanceGrid[] == 1)
@@ -400,6 +402,7 @@ remove(getMutations)
 remove(getResistance)
 remove(getState)
 remove(setState)
+remove(r)
 
 ############# Analysis: Simulation Overview  ###############
 # Plot the state of infection while in progress. 
@@ -428,9 +431,11 @@ state_sp1
 state_sp2
 
 # Graphing of cell counts per epoch
-Healthy = states_count[,1]
-Infected = states_count[,2]
-Dead = states_count[,3]
+number_of_cells = n*n
+Healthy = states_count[,1]/number_of_cells
+Infected = states_count[,2]/number_of_cells
+Dead = states_count[,3]/number_of_cells
+
 simulation_overview = plot(Healthy, 
                            type="l", lty=1, lwd = 2,
                            col="green", 
@@ -469,7 +474,7 @@ lines(One_eps, type="l", lty=1, col="red")
 lines(Two_eps, type="l", lty=1, col="blue")
 lines(Three_eps, type="l", lty=1, col="orange")
 
-legend("topright", 
+legend("bottomright", 
        c("Cells alive for 0 epoch","Cells alive for 1 epoch", 
          "Cells alive for 2 epoch", "Cells alive for 3 epoch"),
        lty= c(1,1,1,1), lwd = c(2,2,2,2), 
@@ -501,7 +506,7 @@ lines(Two_r, type="l", lty=1, col="blue")
 lines(Three_r, type="l", lty=1, col="orange")
 lines(Overall_r, type="l", lty=1, col="red")
 
-legend("topright", 
+legend("topleft", 
        c("Cells resistant to 1 drug","Cells resistant to 2 drug", 
          "Cells resistant to 3 drug", "Overall count of cells resistant to drugs"), 
        lty= c(1,1,1,1), lwd = c(2,2,2,2), 
@@ -524,5 +529,3 @@ plot(genotypes_count[,1],
      main = "Number of Genotypes")
 
 legend("topright", "# of Genotypes", lty= 1, lwd =2, col = "red" )
-
-# Plot the number of genotypes with resistance over time.  
