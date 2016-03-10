@@ -141,7 +141,7 @@ setMethod(f = "getResistance", signature = "cell",
 
 # Parameters
 n = 100                         # grid dimensions n x n
-P_HIV = 0.05                    # initial grid will have P_hiv acute infected cells
+P_HIV = 0.03                    # initial grid will have P_hiv acute infected cells
 P_i = 0.997             	      # probability of infection by neighbors
 P_v = 0.00001                   # probability of infection by random viral contact
 P_rep = 0.99                    # probability of dead cell being replaced by healthy
@@ -149,7 +149,7 @@ tau = 4                         # time delay for an I cell to become D
 hiv_total_aa = 2876             # Estimated total number of amino acids of the HIV-1 proteinome
 base_drug_efficiency = 0.30     # base probability that the triple cocktail will kill and infected cell
 start_of_therapy = 20           # epoch at which to start drug therapy
-totalsteps = 60                 # total number of weeks of simulation to be performed
+totalsteps = 70                 # total number of weeks of simulation to be performed
 resiliance = 10                 # number of epochs before the start of phase 2 of infection
 
 # Immune system parameters
@@ -173,20 +173,20 @@ k = 2
 # state = 3 (Infected), otherwise state = 1 (Healthy). Each cell is also assigned an empty 
 # environment to track mutations. 
 
-# grid <- matrix( sapply(1:(n*n), function(x){ new("cell",
-#                                              state = ifelse(runif(1)<= P_HIV, 3, 1),
-#                                              mutations = new.env(hash = TRUE))
-#                                              }), n, n)
+grid <- matrix( sapply(1:(n*n), function(x){ new("cell",
+                                             state = ifelse(runif(1)<= P_HIV, 3, 1),
+                                             mutations = new.env(hash = TRUE))
+                                             }), n, n)
 
 
 ##Testing infection single entry point.
-grid <- matrix( sapply(1:(n*n), function(x){ new("cell",
-                                                 state = 1,
-                                                 mutations = new.env(hash = TRUE))
-}), n, n)
-
-grid[[3,48]]@state = 3
-grid[[3,52]]@state = 3
+# grid <- matrix( sapply(1:(n*n), function(x){ new("cell",
+#                                                  state = 1,
+#                                                  mutations = new.env(hash = TRUE))
+# }), n, n)
+# 
+# grid[[3,48]]@state = 3
+# grid[[3,52]]@state = 3
 
 
 # Set the state of the cells at the edges of the grid to Healthy state
@@ -225,7 +225,7 @@ colnames(genotypes_count)[1] = "Number of Genomes"
 
 ############# Simulation ###############
 timestep = 1; 
-#while(timestep <= totalsteps){
+while(timestep <= totalsteps){
   	nextgrid = matrix( sapply(1:(n*n), function(x){ new("cell", state = 1,
                                             	      mutations = new.env(hash = TRUE))
                                             	      }), n, n)
@@ -294,7 +294,7 @@ timestep = 1;
  	 		      next
  	 		    }#End Rule 1
   
-    		  # Rule 2 a and b
+    		  # Rule 2
           # If the cell is in I state, the viral genome is subject to 
  	 		    # mutations. Mutations occur at a rate of 1/day or 7/epoch (2.a)
  	 		    # If a cell has been in this state for tau timesteps or does not 
@@ -307,10 +307,9 @@ timestep = 1;
               # Our model simplifies drug resistance by assuming all drugs are equally efficient,
               # and letting each single succesful mutation represent resistance to a single drug. 
               # Therefore, once the number of succesful mutations has reached 3, we consider this 
-              # cell to be resistant to the 3 drugs begin employed in the triple cocktail. Further 
-              # succesful mutations are accounted for, but not used to increase cell fitness further.
-              cell_resistance = ifelse(grid[[x,y]]@resistance <= 2, grid[[x,y]]@resistance, 3)
-              drug_efficiency = ifelse(timestep >= start_of_therapy, (base_drug_efficiency * (3 - cell_resistance)), 0) 
+              # cell to be resistant to the 3 drugs begin employed in the triple cocktail.
+              cell_resistance = grid[[x,y]]@resistance
+              drug_efficiency = ifelse(timestep >= start_of_therapy, (base_drug_efficiency * (3 - cell_resistance)), -1) 
               
               # Kill cell if it has lived enough epochs or drug takes over
               if((grid[[x,y]]@infected_epochs >= tau) || (runif(1) <= drug_efficiency)){
@@ -345,39 +344,36 @@ timestep = 1;
   	# Assign the updates of this timestep in nextgrid back to our grid
   	grid = nextgrid
   	
+  	#Update aggregate counts
   	stateGrid[,] = sapply(grid[,], function(x) getState(x))
-  	plot_ly(z = stateGrid, type = "heatmap")
+  	states_count[timestep,1] = sum(stateGrid[] == 1)
+  	states_count[timestep,2] = sum(stateGrid[] == 3)
+  	states_count[timestep,3] = sum(stateGrid[] == 2)
   	
-#   	# Update aggregate counts
-#   	stateGrid[,] = sapply(grid[,], function(x) getState(x))
-#   	states_count[timestep,1] = sum(stateGrid[] == 1)
-#   	states_count[timestep,2] = sum(stateGrid[] == 3)
-#   	states_count[timestep,3] = sum(stateGrid[] == 2)
-#   	
-#   	infectedEpochsGrid[,] = sapply(grid[,], function(x) getInfected_epochs(x))
-#   	infectedEpochs_count[timestep,0] = sum(infectedEpochsGrid[] == 0)
-#   	infectedEpochs_count[timestep,1] = sum(infectedEpochsGrid[] == 1)
-#   	infectedEpochs_count[timestep,2] = sum(infectedEpochsGrid[] == 2)
-#   	infectedEpochs_count[timestep,3] = sum(infectedEpochsGrid[] >= 3)
-#   	
-#   	resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
-#   	resistance_count[timestep,1] = sum(resistanceGrid[] == 1)
-#   	resistance_count[timestep,2] = sum(resistanceGrid[] == 2)
-#   	resistance_count[timestep,3] = sum(resistanceGrid[] >= 3)
-#   	
-#   	genotypes = sapply(grid[,], function(x) getMutations(x))
-#   	genotypes_count[timestep,1] = sum(sapply(genotypes, function (x) length(x)>0) == TRUE)
-#   	
-#   	# Save plot of current state of the grid to variable
-#   	if(timestep %in% savesteps){
-#   	  stateGrid_list[[k]] = stateGrid
-#   	  k = k + 1
-#   	}  	
+  	infectedEpochsGrid[,] = sapply(grid[,], function(x) getInfected_epochs(x))
+  	infectedEpochs_count[timestep,0] = sum(infectedEpochsGrid[] == 0)
+  	infectedEpochs_count[timestep,1] = sum(infectedEpochsGrid[] == 1)
+  	infectedEpochs_count[timestep,2] = sum(infectedEpochsGrid[] == 2)
+  	infectedEpochs_count[timestep,3] = sum(infectedEpochsGrid[] >= 3)
+  	
+  	resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
+  	resistance_count[timestep,1] = sum(resistanceGrid[] == 1)
+  	resistance_count[timestep,2] = sum(resistanceGrid[] == 2)
+  	resistance_count[timestep,3] = sum(resistanceGrid[] >= 3)
+  	
+  	genotypes = sapply(grid[,], function(x) getMutations(x))
+  	genotypes_count[timestep,1] = sum(sapply(genotypes, function (x) length(x)>0) == TRUE)
+  	
+  	# Save plot of current state of the grid to variable
+  	if(timestep %in% savesteps){
+  	  stateGrid_list[[k]] = stateGrid
+  	  k = k + 1
+  	}  	
   	
   	# Move to the next timestep
   	timestep = timestep+1
   		
-#} #End while loop
+} #End while loop
 
 ############# Clean-Up: CA and Simulation parameters ###############
 remove(P_HIV)
