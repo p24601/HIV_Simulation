@@ -517,6 +517,7 @@ for (x in 1:num_grids){
   dev.off()
 }
 
+
 # Graphing of cell counts per epoch
 number_of_cells = n*n
 Healthy = states_count[,1]
@@ -525,21 +526,22 @@ Dead = states_count[,3]
 
 mypath <- file.path(paste(base_dest, "overview.png"))
 png(file=mypath)
-simulation_overview = plot(Healthy, 
-                           type="l", lty=1, lwd = 2,
-                           col="green", 
-                           xlab = "Weeks", 
-                           ylab = "Cell Count", 
-                           main = "Simulation Overview")
 
-lines(Infected, type="l", lty=1, col="red")
+par(mfrow=c(1,2))
+plot(Healthy, 
+             type="l", lty=1, lwd = 2,
+             col="green", 
+             xlab = "Weeks", 
+             ylab = "Cell Count")
+
+plot(Infected, 
+     type="l", lty=1, lwd = 2,
+     col="red", 
+     xlab = "Weeks")
 lines(Dead, type="l", lty=1, col="blue")
 
-legend("topright", 
-       c("Healthy", "Infected", "Dead"),
-       lty= c(1,1,1), lwd = c(2,2,2), 
-       col = c("green", "red", "blue"),
-       cex = .75)
+mtext("Simulation Overview", side=3, outer=TRUE, line=-3)
+
 
 dev.off()
 
