@@ -137,16 +137,16 @@ setMethod(f = "getResistance", signature = "cell",
 # State 2: D:   Dead            
 
 # Parameters
-n = 100                         # grid dimensions n x n
+n = 50                         # grid dimensions n x n
 P_HIV = 0.03                    # initial grid will have P_hiv acute infected cells
 P_i = 0.997             	      # probability of infection by neighbors
 P_v = 0.00001                   # probability of infection by random viral contact
 P_rep = 0.99                    # probability of dead cell being replaced by healthy
 tau = 4                         # time delay for an I cell to become D  
 hiv_total_aa = 2876             # Estimated total number of amino acids of the HIV-1 proteinome
-base_drug_efficiency = 0.24      # base probability that the triple cocktail will kill and infected cell
+base_drug_efficiency = 0.23     # base probability that the triple cocktail will kill and infected cell
 start_of_therapy = 20           # epoch at which to start drug therapy
-totalsteps = 480                # total number of weeks of simulation to be performed
+totalsteps = 50                # total number of weeks of simulation to be performed
 resiliance = 10                 # number of epochs before the start of phase 2 of infection
 strain_active = FALSE
 logging = FALSE
@@ -164,6 +164,7 @@ savesteps = seq(1, totalsteps, by = 1)
 
 # Initialize lists to track the state of cell attribute at each savestep.
 stateGrid_list = list()
+resistanceGrid_list = list()
 k = 2
 
 ############# CA Grid Definition and Preparation ###############
@@ -184,7 +185,7 @@ grid <- matrix( sapply(1:(n*n), function(x){ new("cell",
                                                  mutations = new.env(hash = TRUE))
                                                  }), n, n)
 
-grid[[4,4]]@state = 3
+grid[[25,25]]@state = 3
 # grid[[3,52]]@state = 3
 
 
@@ -269,6 +270,13 @@ while(timestep <= totalsteps){
   	  }
   	}
   	
+  	resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
+  	resistance_count[timestep,1] = sum(resistanceGrid[] == 0)
+  	resistance_count[timestep,2] = sum(resistanceGrid[] == 1)
+  	resistance_count[timestep,3] = sum(resistanceGrid[] == 2)
+  	resistance_count[timestep,4] = sum(resistanceGrid[] >= 3)
+  	
+  	
   	stateGrid[,] = sapply(grid[,], function(x) getState(x))
   	states_count[timestep,1] = sum(stateGrid[] == 1)
   	states_count[timestep,2] = sum(stateGrid[] == 3)
@@ -306,7 +314,7 @@ cat(timestep, file=logFile, append=TRUE, sep = "\n")
  	 		      
  	 		      # Evaluate infectivity conditions 
 
- 	 		      c1 = runif(1)<=(P_i - (drug_efficiency/3));
+ 	 		      c1 = runif(1)<= P_i;
  	 		      c2 = ifelse(length(position) == 0, FALSE, TRUE)
  	 		      c3 = runif(1)<=P_v
  	 		      
@@ -330,7 +338,7 @@ cat(timestep, file=logFile, append=TRUE, sep = "\n")
  	 		        }
  	 		        list2env(as.list.environment(grid[[x_c,y_c]]@mutations, all.names = TRUE),nextgrid[[x,y]]@mutations)
  	 		        
- 	 		        for (z in 1:7){
+ 	 		        for (z in 1:14){
    	 		        # Generate mutation and save it in the cell mutations hashmap.
    	 		        mutation_site = sample(1:hiv_total_aa,1)
    	 		        mutation_aa = aa[sample(1:20, 1)]
@@ -429,9 +437,10 @@ cat(timestep, file=logFile, append=TRUE, sep = "\n")
   	infectedEpochs_count[timestep,3] = sum(infectedEpochsGrid[] >= 3)
   	
   	resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
-  	resistance_count[timestep,1] = sum(resistanceGrid[] == 1)
-  	resistance_count[timestep,2] = sum(resistanceGrid[] == 2)
-  	resistance_count[timestep,3] = sum(resistanceGrid[] >= 3)
+  	resistance_count[timestep,1] = sum(resistanceGrid[] == 0)
+  	resistance_count[timestep,2] = sum(resistanceGrid[] == 1)
+  	resistance_count[timestep,3] = sum(resistanceGrid[] == 2)
+  	resistance_count[timestep,4] = sum(resistanceGrid[] >= 3)
   	
   	genotypes = sapply(grid[,], function(x) getMutations(x))
   	genotypes_count[timestep,1] = sum(sapply(genotypes, function (x) length(x)>0) == TRUE)
@@ -439,6 +448,7 @@ cat(timestep, file=logFile, append=TRUE, sep = "\n")
   	# Save plot of current state of the grid to variable
   	if(timestep %in% savesteps){
   	  stateGrid_list[[k]] = stateGrid
+  	  resistanceGrid_list[[k]] = resistanceGrid
   	  k = k + 1
   	}  	
 
@@ -489,14 +499,18 @@ remove(setState)
 remove(r)
 
 ############# Analysis: Simulation Overview  ###############
+base_dest = "~/Dropbox/Lakehead/Work/R_HIV_Simulation/results/template copy/"
+
 # Plot the state of infection while in progress. 
 num_grids = length(stateGrid_list)-1
 for (x in 1:num_grids){
-  mypath <- file.path("~/","Dropbox/","Lakehead/", "Work/", "R_HIV_Simulation/", "results/","template copy/", "gridPlot/", paste("gridPlot_", x, ".png", sep = ""))
+  mypath <- file.path(paste(base_dest, "gridPlot/", "gridPlot_", x, ".png", sep = ""))
   png(file=mypath)
   
   vis_matrix = do.call(cbind, stateGrid_list[x])
-  image(vis_matrix[,nrow(vis_matrix):1], col=heat.colors(3))
+  
+  #Color key: purple:healthy, blue:dead, yellow:infected
+  image(vis_matrix[,nrow(vis_matrix):1], col=c("purple","blue", "yellow"))
   title(main = paste("Timestep ",x))
   
   dev.off()
@@ -508,7 +522,7 @@ Healthy = states_count[,1]
 Infected = states_count[,2]
 Dead = states_count[,3]
 
-mypath <- file.path("~/","Dropbox/","Lakehead/", "Work/", "R_HIV_Simulation/", "results/","template copy/", "overview.png")
+mypath <- file.path(paste(base_dest, "overview.png"))
 png(file=mypath)
 simulation_overview = plot(Healthy, 
                            type="l", lty=1, lwd = 2,
@@ -539,7 +553,7 @@ One_eps = infectedEpochs_count[,2]
 Two_eps = infectedEpochs_count[,3]
 Three_eps = infectedEpochs_count[,4]
 
-mypath <- file.path("~/","Dropbox/","Lakehead/", "Work/", "R_HIV_Simulation/", "results/", "template copy/", "timeInfected.png")
+mypath <- file.path(paste(base_dest, "timeInfected.png"))
 png(file=mypath)
 
 plot(Zero_eps, 
@@ -568,15 +582,31 @@ remove(Two_eps)
 remove(Three_eps)
 
 ############# Analysis: Cells with Resistance ###############
+
+# Plot the state of resistance while in progress. 
+num_grids = length(resistanceGrid_list)-1
+for (x in 1:num_grids){
+  mypath <- file.path(paste(base_dest, "resistancePlot/", "resistancePlot_", x, ".png", sep = ""))
+  png(file=mypath)
+  
+  vis_matrix = do.call(cbind, resistanceGrid_list[x])
+  
+  #Color key: purple:healthy, blue:dead, yellow:infected
+  image(vis_matrix[,nrow(vis_matrix):1], col=c("purple","blue", "yellow"))
+  title(main = paste("Timestep ",x))
+  
+  dev.off()
+}
+
 # Plot the number of cells with resistance over time.
-resistance_count[,4] = rowSums(resistance_count)
+resistance_count[,5] = rowSums(resistance_count)
 
-One_r = resistance_count[,1]
-Two_r = resistance_count[,2]
-Three_r = resistance_count[,3]
-Overall_r = resistance_count[,4]
+One_r = resistance_count[,2]
+Two_r = resistance_count[,3]
+Three_r = resistance_count[,4]
+Overall_r = resistance_count[,5]
 
-mypath <- file.path("~/","Dropbox/","Lakehead/", "Work/", "R_HIV_Simulation/", "results/", "template copy/", "resistance.png")
+mypath <- file.path(paste(base_dest, "resistance.png"))
 png(file=mypath)
 
 plot(One_r, 
@@ -607,7 +637,7 @@ remove(Overall_r)
 ############# Analysis: Genotypes ###############
 # Plot the number of genotypes present in the grid
 
-mypath <- file.path("~/","Dropbox/","Lakehead/", "Work/", "R_HIV_Simulation/", "results/" ,"template copy/", "genotypes.png")
+mypath <- file.path(paste(base_dest, "genotypes.png"))
 png(file=mypath)
 
 plot(genotypes_count[,1], 
