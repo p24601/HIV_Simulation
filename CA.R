@@ -275,6 +275,7 @@ while(timestep <= totalsteps){
   	resistance_count[timestep,2] = sum(resistanceGrid[] == 1)
   	resistance_count[timestep,3] = sum(resistanceGrid[] == 2)
   	resistance_count[timestep,4] = sum(resistanceGrid[] >= 3)
+  	resistanceGrid_list[[k]] = resistanceGrid
   	
   	
   	stateGrid[,] = sapply(grid[,], function(x) getState(x))
@@ -585,14 +586,12 @@ remove(Three_eps)
 
 # Plot the state of resistance while in progress. 
 num_grids = length(resistanceGrid_list)-1
-for (x in 1:num_grids){
+for (x in 2:num_grids){
   mypath <- file.path(paste(base_dest, "resistancePlot/", "resistancePlot_", x, ".png", sep = ""))
   png(file=mypath)
   
   vis_matrix = do.call(cbind, resistanceGrid_list[x])
-  
-  #Color key: purple:healthy, blue:dead, yellow:infected
-  image(vis_matrix[,nrow(vis_matrix):1], col=c("purple","blue", "yellow"))
+  image(vis_matrix[,nrow(vis_matrix):1], col=heat.colors(3))
   title(main = paste("Timestep ",x))
   
   dev.off()
