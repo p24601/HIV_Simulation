@@ -77,13 +77,13 @@ cell <- setClass(
 # Set method for the state of a cell
 setGeneric(name="setState",
            def= function(aCell, aState){
-           standardGeneric("setState")
+             standardGeneric("setState")
            })
 
 setMethod(f = "setState", signature = "cell",
           definition = function(aCell, aState) {
-          aCell@state = aState
-          return (aCell)
+            aCell@state = aState
+            return (aCell)
           })
 
 # Get method for the state of a cell
@@ -183,9 +183,9 @@ k = 2
 grid <- matrix( sapply(1:(n*n), function(x){ new("cell",
                                                  state = 1,
                                                  mutations = new.env(hash = TRUE))
-                                                 }), n, n)
+}), n, n)
 
-grid[[25,25]]@state = 3
+grid[[n/2,n/2]]@state = 3
 # grid[[3,52]]@state = 3
 
 
@@ -230,234 +230,228 @@ colnames(genotypes_count)[1] = "Number of Genomes"
 if (logging){logFile = "log_file.txt"}
 timestep = 1; 
 while(timestep <= totalsteps){
-  	nextgrid = matrix( sapply(1:(n*n), function(x){ new("cell", state = 1,
-                                            	      mutations = new.env(hash = TRUE))
-                                            	      }), n, n)
-  	
-  	for (x in 2:(n-1)){
-  	  for (y in 2:(n-1)){
-  	    # Rule 2
-  	    # If the cell is in I state, the viral genome is subject to 
-  	    # mutations. Mutations occur at a rate of 1/day or 7/epoch (2.a)
-  	    # If a cell has been in this state for tau timesteps or does not 
-  	    # have sufficient drug resistance, the cell becomes D state (dead). 
-  	    # In this case the accumulated mutations are lost (2.b) 
-  	    if((grid[[x,y]]@state == 3)){
-  	        	      
-  	      # Our model simplifies drug resistance by assuming all drugs are equally efficient,
-  	      # and letting each single succesful mutation represent resistance to a single drug. 
-  	      # Therefore, once the number of succesful mutations has reached 3, we consider this 
-  	      # cell to be resistant to the 3 drugs begin employed in the triple cocktail.
-  	      cell_resistance = grid[[x,y]]@resistance
-  	      drug_efficiency = ifelse(timestep >= start_of_therapy, (base_drug_efficiency * (3 - cell_resistance)), -1) 
-  	      
-  	      # Kill cell if it has lived enough epochs or drug takes over
-  	      if((grid[[x,y]]@infected_epochs >= tau) || (runif(1) <= drug_efficiency)){
-  	        grid[[x,y]]@state = 2
-  	        nextgrid[[x,y]]@state = 2
-  	        nextgrid[[x,y]]@infected_epochs = 0
-  	        
-  	        # If a cell dies, its mutations are lost
-  	        nextgrid[[x,y]]@mutations = new.env(hash = TRUE)
-  	        
-  	      }else{
-  	        nextgrid[[x,y]]@infected_epochs = grid[[x,y]]@infected_epochs+1
-  	        list2env(as.list.environment(grid[[x,y]]@mutations, all.names = TRUE),nextgrid[[x,y]]@mutations)
-  	        nextgrid[[x,y]]@state = 3
-  	      }#End else
-  	      next
-  	    }#End Rule 2
-  	  }
-  	}
-  	
-  	resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
-  	resistance_count[timestep,1] = sum(resistanceGrid[] == 0)
-  	resistance_count[timestep,2] = sum(resistanceGrid[] == 1)
-  	resistance_count[timestep,3] = sum(resistanceGrid[] == 2)
-  	resistance_count[timestep,4] = sum(resistanceGrid[] >= 3)
-  	resistanceGrid_list[[k]] = resistanceGrid
-  	
-  	
-  	stateGrid[,] = sapply(grid[,], function(x) getState(x))
-  	states_count[timestep,1] = sum(stateGrid[] == 1)
-  	states_count[timestep,2] = sum(stateGrid[] == 3)
-  	states_count[timestep,3] = sum(stateGrid[] == 2)
-  	
-  	stateGrid_list[[k]] = stateGrid
-  	k = k + 1
-  	
-  if (logging){
-cat("Timestep: ", file=logFile, append=TRUE)  	
-cat(timestep, file=logFile, append=TRUE, sep = "\n")
-}
-  		for (x in 2:(n-1)){
- 	 		  for (y in 2:(n-1)){
+  nextgrid = matrix( sapply(1:(n*n), function(x){ new("cell", state = 1,
+                                                      mutations = new.env(hash = TRUE))
+  }), n, n)
+  
+  for (x in 2:(n-1)){
+    for (y in 2:(n-1)){
+      # Rule 2
+      # If the cell is in I state, the viral genome is subject to 
+      # mutations. Mutations occur at a rate of 1/day or 7/epoch (2.a)
+      # If a cell has been in this state for tau timesteps or does not 
+      # have sufficient drug resistance, the cell becomes D state (dead). 
+      # In this case the accumulated mutations are lost (2.b) 
+      if((grid[[x,y]]@state == 3)){
+        
+        # Our model simplifies drug resistance by assuming all drugs are equally efficient,
+        # and letting each single succesful mutation represent resistance to a single drug. 
+        # Therefore, once the number of succesful mutations has reached 3, we consider this 
+        # cell to be resistant to the 3 drugs begin employed in the triple cocktail.
+        cell_resistance = grid[[x,y]]@resistance
+        drug_efficiency = ifelse(timestep >= start_of_therapy, (base_drug_efficiency * (3 - cell_resistance)), -1) 
+        
+        # Kill cell if it has lived enough epochs or drug takes over
+        if((grid[[x,y]]@infected_epochs >= tau) || (runif(1) <= drug_efficiency)){
+          grid[[x,y]]@state = 2
+          nextgrid[[x,y]]@state = 2
+          nextgrid[[x,y]]@infected_epochs = 0
           
-  	  		# Rule 1
-  	  		# If the cell is in H state and at least one of its neighbors
-  	  		# is in I state then the cell becomes I with a probability of 
-   	 		  # P_i (Conditions c1 and c2). The cell may also becomes I1 by 
-   	 		  # randomly coming in contact with a virus from outside its 
-   	 		  # neighborhood with a probability of P_v (Condition c3).
- 	 		    if(grid[[x,y]]@state == 1){
- 	 		      
- 	 		      # Subset the main grid for the Moore neighbourhood around the current cell
- 	 		      
-#  	 		      x_minus = ifelse(x == 1, n, x+1)
-#  	 		      x_plus = ifelse(x == n, 1, x-1)
-#  	 		      y_minus = ifelse(y == 1, n, y+1)
-#  	 		      y_plus = ifelse(y == n, 1, y-1)
- 	 		      
- 	 		      current_neighbourhood[,] = sapply(grid[c(x-1, x, x+1),c(y-1, y, y+1)], function(x) getState(x))
- 	 		      
- 	 		      # Extract the position of any available infected cells
- 	 		      position = which(current_neighbourhood == 3, arr.ind = TRUE) - c(2,2)
- 	 		      
- 	 		      # Evaluate infectivity conditions 
-
- 	 		      c1 = runif(1)<= P_i;
- 	 		      c2 = ifelse(length(position) == 0, FALSE, TRUE)
- 	 		      c3 = runif(1)<=P_v
- 	 		      
- 	 		      # Evaluate Rule 1
- 	 		      if((c1 && c2) || c3){  
- 	 		        nextgrid[[x,y]]@state = 3
- 	 		        
- 	 		        # If the infecting cell is from the neighbourhood, calculate correct 
- 	 		        # indices and pass mutation map to the infected cell. If infection is
- 	 		        # coming from a remote cell, pick a random infected cell from the CA. 
- 	 		        if (c2){
- 	 		          r = sample(1:nrow(position),1)
- 	 		          x_c = x + position[[r,1]]
- 	 		          y_c = y + position[[r,2]]
- 	 		        }else{
- 	 		          stateGrid[,] = sapply(grid[,], function(x) getState(x))
- 	 		          position = which(stateGrid[,] == 3, arr.ind = TRUE)
- 	 		          r = sample(1:nrow(position),1)
- 	 		          x_c = position[[r,1]]
- 	 		          y_c = position[[r,2]]
- 	 		        }
- 	 		        list2env(as.list.environment(grid[[x_c,y_c]]@mutations, all.names = TRUE),nextgrid[[x,y]]@mutations)
- 	 		        
- 	 		        for (z in 1:14){
-   	 		        # Generate mutation and save it in the cell mutations hashmap.
-   	 		        mutation_site = sample(1:hiv_total_aa,1)
-   	 		        mutation_aa = aa[sample(1:20, 1)]
-   	 		        nextgrid[[x,y]]@mutations[[as.character(mutation_site)]] = mutation_aa
-   	 		        
-   	 		        # If the mutation occurs at a drug resistance-conferring site, check if the
-   	 		        # amino acid it is mutating to grants resistance. If yes, increase cell 
-   	 		        # resistance count, otherwise, decrease it.
-   	 		        potential_resistance = resistanceSites_env[[as.character(mutation_site)]]
-   	 		        if(!is.null(potential_resistance)){
-   	 		          present = mutation_aa %in% potential_resistance
+          # If a cell dies, its mutations are lost
+          nextgrid[[x,y]]@mutations = new.env(hash = TRUE)
+          
+        }else{
+          nextgrid[[x,y]]@infected_epochs = grid[[x,y]]@infected_epochs+1
+          list2env(as.list.environment(grid[[x,y]]@mutations, all.names = TRUE),nextgrid[[x,y]]@mutations)
+          nextgrid[[x,y]]@state = 3
+        }#End else
+        next
+      }#End Rule 2
+    }
+  }
   
-   	 		          if (present && (nextgrid[[x,y]]@resistance < 3)){
-   	 		            nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance+1
-   	 		            
-   	 		            if(logging){
-     	 		            cat("Resistance Acquired: ", file=logFile, append=TRUE)
-     	 		            cat("(", file=logFile, append=TRUE)
-     	 		            cat(timestep, file=logFile, append=TRUE)
-     	 		            cat(",", file=logFile, append=TRUE)
-     	 		            cat(x, file=logFile, append=TRUE)
-     	 		            cat(",", file=logFile, append=TRUE)
-     	 		            cat(y, file=logFile, append=TRUE)
-     	 		            cat(") ", file=logFile, append=TRUE, sep = "\t" )
-     	 		            cat(mutation_site, file=logFile, append=TRUE)
-     	 		            cat(":", file=logFile, append=TRUE)
-     	 		            cat(mutation_aa, file=logFile, append=TRUE, sep = "\n")
-   	 		            }
-   	 		            
-   	 		          }else if (!present && (nextgrid[[x,y]]@resistance > 0)){
-   	 		            nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance-1
-   	 		          }
-   	 		        }
- 	 		        }   
- 	 		        
- 	 		        if(logging){
-   	 		        cat("(", file=logFile, append=TRUE)
-   	 		        cat(timestep-1, file=logFile, append=TRUE)
-   	 		        cat(",", file=logFile, append=TRUE)
-   	 		        cat(x_c, file=logFile, append=TRUE)
-   	 		        cat(",", file=logFile, append=TRUE)
-   	 		        cat(y_c, file=logFile, append=TRUE)
-   	 		        cat(") ", file=logFile, append=TRUE, sep = "\t")
-   	 		        
-   	 		        cat("(", file=logFile, append=TRUE)
-   	 		        cat(timestep, file=logFile, append=TRUE)
-   	 		        cat(",", file=logFile, append=TRUE)
-   	 		        cat(x, file=logFile, append=TRUE)
-   	 		        cat(",", file=logFile, append=TRUE)
-   	 		        cat(y, file=logFile, append=TRUE)
-   	 		        cat(") ", file=logFile, append=TRUE)
-   	 		        g = 1
-   	 		        for (v in ls(nextgrid[[x,y]]@mutations)) {
-   	 		          cat((ls(nextgrid[[x,y]]@mutations)[g]), file=logFile, append=TRUE)
-   	 		          cat(":", file=logFile, append=TRUE)
-   	 		          cat(nextgrid[[x,y]]@mutations[[v]], file=logFile, append=TRUE, sep = "\t")
-   	 		          cat("   ", file=logFile, append=TRUE)
-   	 		          g = g +1
-   	 		        }
-   	 		        cat(" ", file=logFile, append=TRUE, sep = "\n")
-   	 		        }
- 	 		      }
- 	 		      next
- 	 		    }#End Rule 1
-    		  
- 	 		    
-		      # Rule 3
-          # If the cell is in D state, then the cell will become H state
-          # with probability P_rep 
- 	 		    if(grid[[x,y]]@state == 2){
- 	 		      strain = ifelse(strain_active, (is_capacity - (fatigue_ir*timestep))/100, 1)
-   	 		      if(runif(1) <= (P_rep*strain)){
-   	 		        nextgrid[[x,y]]@state = 1
-   	 		      }else{
-   	 		        nextgrid[[x,y]]@state = 2
-   	 		      }  
-   	 		      next
-          }#End Rule 3
- 	 		    
- 	 		 } #End inner for loop
-  	} #End outer for loop
+  resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
+  resistance_count[timestep,1] = sum(resistanceGrid[] == 0)
+  resistance_count[timestep,2] = sum(resistanceGrid[] == 1)
+  resistance_count[timestep,3] = sum(resistanceGrid[] == 2)
+  resistance_count[timestep,4] = sum(resistanceGrid[] >= 3)
+  resistanceGrid_list[[k]] = resistanceGrid
   
-  	# Assign the updates of this timestep in nextgrid back to our grid
-  	grid = nextgrid
-  	
-  	#Update aggregate counts
-  	stateGrid[,] = sapply(grid[,], function(x) getState(x))
-  	states_count[timestep+1,1] = sum(stateGrid[] == 1)
-  	states_count[timestep+1,2] = sum(stateGrid[] == 3)
-  	states_count[timestep+1,3] = sum(stateGrid[] == 2)
-  	
-  	infectedEpochsGrid[,] = sapply(grid[,], function(x) getInfected_epochs(x))
-  	infectedEpochs_count[timestep,0] = sum(infectedEpochsGrid[] == 0)
-  	infectedEpochs_count[timestep,1] = sum(infectedEpochsGrid[] == 1)
-  	infectedEpochs_count[timestep,2] = sum(infectedEpochsGrid[] == 2)
-  	infectedEpochs_count[timestep,3] = sum(infectedEpochsGrid[] >= 3)
-  	
-  	resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
-  	resistance_count[timestep,1] = sum(resistanceGrid[] == 0)
-  	resistance_count[timestep,2] = sum(resistanceGrid[] == 1)
-  	resistance_count[timestep,3] = sum(resistanceGrid[] == 2)
-  	resistance_count[timestep,4] = sum(resistanceGrid[] >= 3)
-  	
-  	genotypes = sapply(grid[,], function(x) getMutations(x))
-  	genotypes_count[timestep,1] = sum(sapply(genotypes, function (x) length(x)>0) == TRUE)
-  	
-  	# Save plot of current state of the grid to variable
-  	if(timestep %in% savesteps){
-  	  stateGrid_list[[k]] = stateGrid
-  	  resistanceGrid_list[[k]] = resistanceGrid
-  	  k = k + 1
-  	}  	
-
-  	# Move to the next timestep
-  	timestep = timestep+1
-
+  
+  stateGrid[,] = sapply(grid[,], function(x) getState(x))
+  states_count[timestep,1] = sum(stateGrid[] == 1)
+  states_count[timestep,2] = sum(stateGrid[] == 3)
+  states_count[timestep,3] = sum(stateGrid[] == 2)
+  
+  stateGrid_list[[k]] = stateGrid
+  k = k + 1
+  
+  if (logging){
+    cat("Timestep: ", file=logFile, append=TRUE)  	
+    cat(timestep, file=logFile, append=TRUE, sep = "\n")
+  }
+  for (x in 2:(n-1)){
+    for (y in 2:(n-1)){
+      
+      # Rule 1
+      # If the cell is in H state and at least one of its neighbors
+      # is in I state then the cell becomes I with a probability of 
+      # P_i (Conditions c1 and c2). The cell may also becomes I1 by 
+      # randomly coming in contact with a virus from outside its 
+      # neighborhood with a probability of P_v (Condition c3).
+      if(grid[[x,y]]@state == 1){
+        
+        current_neighbourhood[,] = sapply(grid[c(x-1, x, x+1),c(y-1, y, y+1)], function(x) getState(x))
+        
+        # Extract the position of any available infected cells
+        position = which(current_neighbourhood == 3, arr.ind = TRUE) - c(2,2)
+        
+        # Evaluate infectivity conditions 
+        
+        c1 = runif(1)<= P_i; #c1 represents probability of infection
+        c2 = ifelse(length(position) == 0, FALSE, TRUE) # there exists an infected cell(s)
+        c3 = runif(1)<=P_v #infecting from far away
+        
+        # Evaluate Rule 1
+        if((c1 && c2) || c3){  
+          nextgrid[[x,y]]@state = 3
+          
+          # If the infecting cell is from the neighbourhood, calculate correct 
+          # indices and pass mutation map to the infected cell. If infection is
+          # coming from a remote cell, pick a random infected cell from the CA. 
+          if (c2){
+            r = sample(1:nrow(position),1)
+            x_c = x + position[[r,1]]
+            y_c = y + position[[r,2]]
+          }else{
+            stateGrid[,] = sapply(grid[,], function(x) getState(x))
+            position = which(stateGrid[,] == 3, arr.ind = TRUE)
+            r = sample(1:nrow(position),1)
+            x_c = position[[r,1]]
+            y_c = position[[r,2]]
+          }
+          list2env(as.list.environment(grid[[x_c,y_c]]@mutations, all.names = TRUE),nextgrid[[x,y]]@mutations)
+          
+          for (z in 1:14){
+            # Generate mutation and save it in the cell mutations hashmap.
+            mutation_site = sample(1:hiv_total_aa,1)
+            mutation_aa = aa[sample(1:20, 1)]
+            nextgrid[[x,y]]@mutations[[as.character(mutation_site)]] = mutation_aa
+            
+            # If the mutation occurs at a drug resistance-conferring site, check if the
+            # amino acid it is mutating to grants resistance. If yes, increase cell 
+            # resistance count, otherwise, decrease it.
+            potential_resistance = resistanceSites_env[[as.character(mutation_site)]]
+            if(!is.null(potential_resistance)){
+              present = mutation_aa %in% potential_resistance
+              
+              if (present && (nextgrid[[x,y]]@resistance < 3)){
+                nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance+1
+                
+                if(logging){
+                  cat("Resistance Acquired: ", file=logFile, append=TRUE)
+                  cat("(", file=logFile, append=TRUE)
+                  cat(timestep, file=logFile, append=TRUE)
+                  cat(",", file=logFile, append=TRUE)
+                  cat(x, file=logFile, append=TRUE)
+                  cat(",", file=logFile, append=TRUE)
+                  cat(y, file=logFile, append=TRUE)
+                  cat(") ", file=logFile, append=TRUE, sep = "\t" )
+                  cat(mutation_site, file=logFile, append=TRUE)
+                  cat(":", file=logFile, append=TRUE)
+                  cat(mutation_aa, file=logFile, append=TRUE, sep = "\n")
+                }
+                
+              }else if (!present && (nextgrid[[x,y]]@resistance > 0)){
+                nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance-1
+              }
+            }
+          }   
+          
+          if(logging){
+            cat("(", file=logFile, append=TRUE)
+            cat(timestep-1, file=logFile, append=TRUE)
+            cat(",", file=logFile, append=TRUE)
+            cat(x_c, file=logFile, append=TRUE)
+            cat(",", file=logFile, append=TRUE)
+            cat(y_c, file=logFile, append=TRUE)
+            cat(") ", file=logFile, append=TRUE, sep = "\t")
+            
+            cat("(", file=logFile, append=TRUE)
+            cat(timestep, file=logFile, append=TRUE)
+            cat(",", file=logFile, append=TRUE)
+            cat(x, file=logFile, append=TRUE)
+            cat(",", file=logFile, append=TRUE)
+            cat(y, file=logFile, append=TRUE)
+            cat(") ", file=logFile, append=TRUE)
+            g = 1
+            for (v in ls(nextgrid[[x,y]]@mutations)) {
+              cat((ls(nextgrid[[x,y]]@mutations)[g]), file=logFile, append=TRUE)
+              cat(":", file=logFile, append=TRUE)
+              cat(nextgrid[[x,y]]@mutations[[v]], file=logFile, append=TRUE, sep = "\t")
+              cat("   ", file=logFile, append=TRUE)
+              g = g +1
+            }
+            cat(" ", file=logFile, append=TRUE, sep = "\n")
+          }
+        }else{
+          nextgrid[[x,y]]@state = 1
+        }
+        next
+      }#End Rule 1
+      
+      
+      # Rule 3
+      # If the cell is in D state, then the cell will become H state
+      # with probability P_rep 
+      if(grid[[x,y]]@state == 2){
+        strain = ifelse(strain_active, (is_capacity - (fatigue_ir*timestep))/100, 1)
+        if(runif(1) <= (P_rep*strain)){
+          nextgrid[[x,y]]@state = 1
+        }else{
+          nextgrid[[x,y]]@state = 2
+        }  
+        next
+      }#End Rule 3
+      
+    } #End inner for loop
+  } #End outer for loop
+  
+  # Assign the updates of this timestep in nextgrid back to our grid
+  grid = nextgrid
+  
+  #Update aggregate counts
+  stateGrid[,] = sapply(grid[,], function(x) getState(x))
+  states_count[timestep+1,1] = sum(stateGrid[] == 1)
+  states_count[timestep+1,2] = sum(stateGrid[] == 3)
+  states_count[timestep+1,3] = sum(stateGrid[] == 2)
+  
+  infectedEpochsGrid[,] = sapply(grid[,], function(x) getInfected_epochs(x))
+  infectedEpochs_count[timestep,0] = sum(infectedEpochsGrid[] == 0)
+  infectedEpochs_count[timestep,1] = sum(infectedEpochsGrid[] == 1)
+  infectedEpochs_count[timestep,2] = sum(infectedEpochsGrid[] == 2)
+  infectedEpochs_count[timestep,3] = sum(infectedEpochsGrid[] >= 3)
+  
+  resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
+  resistance_count[timestep,1] = sum(resistanceGrid[] == 0)
+  resistance_count[timestep,2] = sum(resistanceGrid[] == 1)
+  resistance_count[timestep,3] = sum(resistanceGrid[] == 2)
+  resistance_count[timestep,4] = sum(resistanceGrid[] >= 3)
+  
+  genotypes = sapply(grid[,], function(x) getMutations(x))
+  genotypes_count[timestep,1] = sum(sapply(genotypes, function (x) length(x)>0) == TRUE)
+  
+  # Save plot of current state of the grid to variable
+  if(timestep %in% savesteps){
+    stateGrid_list[[k]] = stateGrid
+    resistanceGrid_list[[k]] = resistanceGrid
+    k = k + 1
+  }  	
+  
+  # Move to the next timestep
+  timestep = timestep+1
+  
 } #End while loop
- 
 
 ############# Clean-Up: CA and Simulation parameters ###############
 remove(P_HIV)
@@ -500,7 +494,7 @@ remove(setState)
 remove(r)
 
 ############# Analysis: Simulation Overview  ###############
-base_dest = "~/Dropbox/Lakehead/Work/R_HIV_Simulation/results/template copy/"
+base_dest = "C:/Users/vmago/Desktop/results/23/"
 
 # Plot the state of infection while in progress. 
 num_grids = length(stateGrid_list)-1
@@ -517,7 +511,6 @@ for (x in 1:num_grids){
   dev.off()
 }
 
-
 # Graphing of cell counts per epoch
 number_of_cells = n*n
 Healthy = states_count[,1]
@@ -529,16 +522,16 @@ png(file=mypath)
 
 par(mfrow=c(1,2))
 plot(Healthy, 
-             type="l", lty=1, lwd = 2,
-             col="green", 
-             xlab = "Weeks", 
-             ylab = "Cell Count")
+     type="l", lty=1, lwd = 2,
+     col="green", 
+     xlab = "Weeks", 
+     ylab = "Cell Count")
 
 plot(Infected, 
      type="l", lty=1, lwd = 2,
      col="red", 
      xlab = "Weeks")
-lines(Dead, type="l", lty=1, col="blue")
+lines(Dead, type="l", lty=1, lwd = 2, col="blue")
 
 mtext("Simulation Overview", side=3, outer=TRUE, line=-3)
 
@@ -599,6 +592,7 @@ for (x in 2:num_grids){
   dev.off()
 }
 
+
 # Plot the number of cells with resistance over time.
 resistance_count[,5] = rowSums(resistance_count)
 
@@ -627,7 +621,7 @@ legend("topright",
        lty= c(1,1,1), lwd = c(2,2,2), 
        col = c("red", "blue", "orange"),
        cex = .75)
-       
+
 dev.off()
 
 remove(One_r)
