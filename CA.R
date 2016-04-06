@@ -149,7 +149,7 @@ start_of_therapy = 20           # epoch at which to start drug therapy
 totalsteps = 50                # total number of weeks of simulation to be performed
 resiliance = 10                 # number of epochs before the start of phase 2 of infection
 strain_active = FALSE
-logging = FALSE
+logging = TRUE
 
 # Immune system parameters
 is_capacity = 100 + (resiliance/totalsteps)
@@ -234,14 +234,15 @@ while(timestep <= totalsteps){
                                                       mutations = new.env(hash = TRUE))
   }), n, n)
   
+  
+  # Rule 2
+  # If the cell is in I state, the viral genome is subject to 
+  # mutations. Mutations occur at a rate of 1/day or 7/epoch (2.a)
+  # If a cell has been in this state for tau timesteps or does not 
+  # have sufficient drug resistance, the cell becomes D state (dead). 
+  # In this case the accumulated mutations are lost (2.b) 
   for (x in 2:(n-1)){
     for (y in 2:(n-1)){
-      # Rule 2
-      # If the cell is in I state, the viral genome is subject to 
-      # mutations. Mutations occur at a rate of 1/day or 7/epoch (2.a)
-      # If a cell has been in this state for tau timesteps or does not 
-      # have sufficient drug resistance, the cell becomes D state (dead). 
-      # In this case the accumulated mutations are lost (2.b) 
       if((grid[[x,y]]@state == 3)){
         
         # Our model simplifies drug resistance by assuming all drugs are equally efficient,
@@ -270,6 +271,7 @@ while(timestep <= totalsteps){
     }
   }
   
+  #Reporting after Rule 2
   resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
   resistance_count[timestep,1] = sum(resistanceGrid[] == 0)
   resistance_count[timestep,2] = sum(resistanceGrid[] == 1)
@@ -285,6 +287,11 @@ while(timestep <= totalsteps){
   
   stateGrid_list[[k]] = stateGrid
   k = k + 1
+  
+  if(states_count[timestep,2] == 0){
+    print("No more infected cells present. Terminating simulation")
+    break
+  }
   
   if (logging){
     cat("Timestep: ", file=logFile, append=TRUE)  	
@@ -308,9 +315,9 @@ while(timestep <= totalsteps){
         
         # Evaluate infectivity conditions 
         
-        c1 = runif(1)<= P_i; #c1 represents probability of infection
+        c1 = runif(1)<= P_i;                            #c1 represents probability of infection
         c2 = ifelse(length(position) == 0, FALSE, TRUE) # there exists an infected cell(s)
-        c3 = runif(1)<=P_v #infecting from far away
+        c3 = runif(1)<=P_v                              #infecting from far away
         
         # Evaluate Rule 1
         if((c1 && c2) || c3){  
@@ -332,7 +339,7 @@ while(timestep <= totalsteps){
           }
           list2env(as.list.environment(grid[[x_c,y_c]]@mutations, all.names = TRUE),nextgrid[[x,y]]@mutations)
           
-          for (z in 1:14){
+          for (z in 1:7){
             # Generate mutation and save it in the cell mutations hashmap.
             mutation_site = sample(1:hiv_total_aa,1)
             mutation_aa = aa[sample(1:20, 1)]
