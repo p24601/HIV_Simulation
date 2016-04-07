@@ -17,12 +17,6 @@
 ############# Install Packages ############# 
 ### install.packages("hash")
 
-############# Install Packages ############# 
-#install.packages(devtools)
-#install.packages("viridis", type="source")
-#devtools::install_github("hadley/ggplot2")
-#install.packages("hash")
-
 ############# Libraries ############# 
 library(ggplot2)
 library(hash)
@@ -137,19 +131,23 @@ setMethod(f = "getResistance", signature = "cell",
 # State 2: D:   Dead            
 
 # Parameters
-n = 50                         # grid dimensions n x n
+n = 100                          # grid dimensions n x n
 P_HIV = 0.03                    # initial grid will have P_hiv acute infected cells
 P_i = 0.997             	      # probability of infection by neighbors
 P_v = 0.00001                   # probability of infection by random viral contact
 P_rep = 0.99                    # probability of dead cell being replaced by healthy
 tau = 4                         # time delay for an I cell to become D  
 hiv_total_aa = 2876             # Estimated total number of amino acids of the HIV-1 proteinome
-base_drug_efficiency = 0.23     # base probability that the triple cocktail will kill and infected cell
+base_drug_efficiency = 0.30     # base probability that the triple cocktail will kill and infected cell
 start_of_therapy = 20           # epoch at which to start drug therapy
-totalsteps = 50                # total number of weeks of simulation to be performed
+totalsteps = 100                 # total number of weeks of simulation to be performed
 resiliance = 10                 # number of epochs before the start of phase 2 of infection
 strain_active = FALSE
-logging = TRUE
+
+logging = FALSE
+base_dest = "~/Dropbox/Lakehead/Work/R_HIV_Simulation/results/template copy/"
+if (logging){logFile = paste(base_dest, "log_file.txt", sep = "")}
+
 
 # Immune system parameters
 is_capacity = 100 + (resiliance/totalsteps)
@@ -212,7 +210,7 @@ mutation_list = matrix(0, nrow = n, ncol = n)
 current_neighbourhood = matrix(nrow = 3, ncol = 3)
 
 # Initialize a grid to keep track of cell attributes during simulation
-states_count = matrix(0, nrow = totalsteps, ncol = 3)
+states_count = matrix(0, nrow = (totalsteps*2), ncol = 3)
 colnames(states_count) = c("Healthy", "Infected", "Dead")
 
 infectedEpochsGrid = matrix(0, nrow = n, ncol = n)
@@ -220,14 +218,14 @@ infectedEpochs_count = matrix(0, nrow = totalsteps, ncol = 4)
 colnames(infectedEpochs_count) = c("0", "1", "2", "3")
 
 resistanceGrid = matrix(0, nrow = n, ncol = n)
-resistance_count = matrix(0, nrow = totalsteps, ncol = 4)
+resistance_count = matrix(0, nrow = (totalsteps*2), ncol = 4)
 colnames(resistance_count) = c("1", "2", "3", "Overall")
 
 genotypes_count = matrix(0, nrow = totalsteps, ncol = 1)
 colnames(genotypes_count)[1] = "Number of Genomes"
 
 ############# Simulation ###############
-if (logging){logFile = "log_file.txt"}
+
 timestep = 1; 
 while(timestep <= totalsteps){
   nextgrid = matrix( sapply(1:(n*n), function(x){ new("cell", state = 1,
@@ -273,10 +271,9 @@ while(timestep <= totalsteps){
   
   #Reporting after Rule 2
   resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
-  resistance_count[timestep,1] = sum(resistanceGrid[] == 0)
-  resistance_count[timestep,2] = sum(resistanceGrid[] == 1)
-  resistance_count[timestep,3] = sum(resistanceGrid[] == 2)
-  resistance_count[timestep,4] = sum(resistanceGrid[] >= 3)
+  resistance_count[timestep,1] = sum(resistanceGrid[] == 1)
+  resistance_count[timestep,2] = sum(resistanceGrid[] == 2)
+  resistance_count[timestep,3] = sum(resistanceGrid[] == 3)
   resistanceGrid_list[[k]] = resistanceGrid
   
   
@@ -289,7 +286,7 @@ while(timestep <= totalsteps){
   k = k + 1
   
   if(states_count[timestep,2] == 0){
-    print("No more infected cells present. Terminating simulation")
+    print(paste("No more infected cells present. Terminating simulation at timestep: ", timestep, sep=""))
     break
   }
   
@@ -338,6 +335,8 @@ while(timestep <= totalsteps){
             y_c = position[[r,2]]
           }
           list2env(as.list.environment(grid[[x_c,y_c]]@mutations, all.names = TRUE),nextgrid[[x,y]]@mutations)
+          nextgrid[[x,y]]@resistance = grid[[x_c,y_c]]@resistance
+          
           
           for (z in 1:7){
             # Generate mutation and save it in the cell mutations hashmap.
@@ -440,10 +439,9 @@ while(timestep <= totalsteps){
   infectedEpochs_count[timestep,3] = sum(infectedEpochsGrid[] >= 3)
   
   resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
-  resistance_count[timestep,1] = sum(resistanceGrid[] == 0)
-  resistance_count[timestep,2] = sum(resistanceGrid[] == 1)
-  resistance_count[timestep,3] = sum(resistanceGrid[] == 2)
-  resistance_count[timestep,4] = sum(resistanceGrid[] >= 3)
+  resistance_count[timestep+1,1] = sum(resistanceGrid[] == 1)
+  resistance_count[timestep+1,2] = sum(resistanceGrid[] == 2)
+  resistance_count[timestep+1,3] = sum(resistanceGrid[] == 3)
   
   genotypes = sapply(grid[,], function(x) getMutations(x))
   genotypes_count[timestep,1] = sum(sapply(genotypes, function (x) length(x)>0) == TRUE)
@@ -465,7 +463,6 @@ remove(P_HIV)
 remove(P_i)
 remove(P_v)
 remove(P_rep)
-remove(P_repI)
 remove(tau)
 remove(hiv_total_aa)
 remove(totalsteps)
@@ -489,7 +486,6 @@ remove(present)
 remove(cell_resistance)
 remove(drug_efficiency)
 remove(resistanceSites_env)
-remove(i)
 remove(grid)
 remove(nextgrid)
 remove(cell)
@@ -501,8 +497,6 @@ remove(setState)
 remove(r)
 
 ############# Analysis: Simulation Overview  ###############
-base_dest = "C:/Users/vmago/Desktop/results/23/"
-
 # Plot the state of infection while in progress. 
 num_grids = length(stateGrid_list)-1
 for (x in 1:num_grids){
@@ -601,12 +595,12 @@ for (x in 2:num_grids){
 
 
 # Plot the number of cells with resistance over time.
-resistance_count[,5] = rowSums(resistance_count)
+resistance_count[,4] = rowSums(resistance_count)
 
-One_r = resistance_count[,2]
-Two_r = resistance_count[,3]
-Three_r = resistance_count[,4]
-Overall_r = resistance_count[,5]
+One_r = resistance_count[,1]
+Two_r = resistance_count[,2]
+Three_r = resistance_count[,3]
+#Overall_r = resistance_count[,4]
 
 mypath <- file.path(paste(base_dest, "resistance.png"))
 png(file=mypath)
@@ -620,7 +614,7 @@ plot(One_r,
 
 lines(Two_r, type="l", lty=1, col="blue")
 lines(Three_r, type="l", lty=1, col="orange")
-lines(Overall_r, type="l", lty=1, col="red")
+#lines(Overall_r, type="l", lty=1, col="red")
 
 legend("topright", 
        c("Cells resistant to 1 drug","Cells resistant to 2 drug", 
