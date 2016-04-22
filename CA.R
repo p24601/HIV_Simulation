@@ -137,10 +137,10 @@ P_i = 0.997             	      # probability of infection by neighbors
 P_v = 0.00001                   # probability of infection by random viral contact
 P_rep = 0.99                    # probability of dead cell being replaced by healthy
 tau = 4                         # time delay for an I cell to become D  
-hiv_total_aa = 2876             # Estimated total number of amino acids of the HIV-1 proteinome
-base_drug_efficiency = 0.30     # base probability that the triple cocktail will kill and infected cell
+hiv_total_aa = 3239             # Estimated total number of amino acids of the HIV-1 proteinome
+base_drug_efficiency = 0.329    # base probability that the triple cocktail will kill and infected cell
 start_of_therapy = 20           # epoch at which to start drug therapy
-totalsteps = 100                 # total number of weeks of simulation to be performed
+totalsteps = 480                 # total number of weeks of simulation to be performed
 resiliance = 10                 # number of epochs before the start of phase 2 of infection
 strain_active = FALSE
 
@@ -171,12 +171,6 @@ k = 2
 # state = 3 (Infected), otherwise state = 1 (Healthy). Each cell is also assigned an empty 
 # environment to track mutations. 
 
-# grid <- matrix( sapply(1:(n*n), function(x){ new("cell",
-#                                              state = ifelse(runif(1)<= P_HIV, 3, 1),
-#                                              mutations = new.env(hash = TRUE))
-#                                              }), n, n)
-
-
 #Testing infection single entry point.
 grid <- matrix( sapply(1:(n*n), function(x){ new("cell",
                                                  state = 1,
@@ -184,7 +178,7 @@ grid <- matrix( sapply(1:(n*n), function(x){ new("cell",
 }), n, n)
 
 grid[[n/2,n/2]]@state = 3
-# grid[[3,52]]@state = 3
+
 
 
 # Set the state of the cells at the edges of the grid to Healthy state
@@ -200,8 +194,6 @@ grid[c(1, n),] = lapply(grid[c(1,n),], function(x) setState(x, 1))
 # Show initial status of the grid
 stateGrid = matrix(0, nrow = n, ncol = n)
 stateGrid[,] = sapply(grid[,], function(x) getState(x))
-image(stateGrid[,nrow(stateGrid):1], col=heat.colors(3))
-title(main = paste("Timestep ",0))
 stateGrid_list[[1]] = stateGrid
 
 mutationGrid_list = list()
@@ -210,8 +202,8 @@ mutation_list = matrix(0, nrow = n, ncol = n)
 current_neighbourhood = matrix(nrow = 3, ncol = 3)
 
 # Initialize a grid to keep track of cell attributes during simulation
-states_count = matrix(0, nrow = (totalsteps*2), ncol = 3)
-colnames(states_count) = c("Healthy", "Infected", "Dead")
+states_count = matrix(0, nrow = (totalsteps*2), ncol = 4)
+colnames(states_count) = c("Healthy", "Infected", "Dead", "Neutralized")
 
 infectedEpochsGrid = matrix(0, nrow = n, ncol = n)
 infectedEpochs_count = matrix(0, nrow = totalsteps, ncol = 4)
@@ -225,13 +217,11 @@ genotypes_count = matrix(0, nrow = totalsteps, ncol = 1)
 colnames(genotypes_count)[1] = "Number of Genomes"
 
 ############# Simulation ###############
-
 timestep = 1; 
 while(timestep <= totalsteps){
   nextgrid = matrix( sapply(1:(n*n), function(x){ new("cell", state = 1,
                                                       mutations = new.env(hash = TRUE))
   }), n, n)
-  
   
   # Rule 2
   # If the cell is in I state, the viral genome is subject to 
@@ -250,14 +240,22 @@ while(timestep <= totalsteps){
         cell_resistance = grid[[x,y]]@resistance
         drug_efficiency = ifelse(timestep >= start_of_therapy, (base_drug_efficiency * (3 - cell_resistance)), -1) 
         
-        # Kill cell if it has lived enough epochs or drug takes over
-        if((grid[[x,y]]@infected_epochs >= tau) || (runif(1) <= drug_efficiency)){
+        # Kill cell if it has lived enough epochs 
+        if(grid[[x,y]]@infected_epochs >= tau){
           grid[[x,y]]@state = 2
           nextgrid[[x,y]]@state = 2
           nextgrid[[x,y]]@infected_epochs = 0
           
           # If a cell dies, its mutations are lost
           nextgrid[[x,y]]@mutations = new.env(hash = TRUE)
+          
+        # After start of drug, infected cells can be neutralized with Pr dependent on the 
+        # Amount of drug resistance accumulated. The more resistance, the less likely to 
+        # be neutralized. A neutralized infected cell, cannot spread infection.  
+        }else if(runif(1) <= drug_efficiency){
+            grid[[x,y]]@state = 4
+            nextgrid[[x,y]]@state = 4
+            nextgrid[[x,y]]@infected_epochs = grid[[x,y]]@infected_epochs+1
           
         }else{
           nextgrid[[x,y]]@infected_epochs = grid[[x,y]]@infected_epochs+1
@@ -266,8 +264,26 @@ while(timestep <= totalsteps){
         }#End else
         next
       }#End Rule 2
+      
+      if((grid[[x,y]]@state == 4)){
+        # Kill neutralized cell if it has lived enough epochs 
+        if(grid[[x,y]]@infected_epochs >= tau){
+          grid[[x,y]]@state = 2
+          nextgrid[[x,y]]@state = 2
+          nextgrid[[x,y]]@infected_epochs = 0
+          
+          # If a cell dies, its mutations are lost
+          nextgrid[[x,y]]@mutations = new.env(hash = TRUE)
+        
+        }else{
+        nextgrid[[x,y]]@infected_epochs = grid[[x,y]]@infected_epochs+1
+        list2env(as.list.environment(grid[[x,y]]@mutations, all.names = TRUE),nextgrid[[x,y]]@mutations)
+        nextgrid[[x,y]]@state = 4
+      }
+        next
+      }
     }
-  }
+  }  
   
   #Reporting after Rule 2
   resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
@@ -281,6 +297,7 @@ while(timestep <= totalsteps){
   states_count[timestep,1] = sum(stateGrid[] == 1)
   states_count[timestep,2] = sum(stateGrid[] == 3)
   states_count[timestep,3] = sum(stateGrid[] == 2)
+  states_count[timestep,4] = sum(stateGrid[] == 4)
   
   stateGrid_list[[k]] = stateGrid
   k = k + 1
@@ -289,11 +306,11 @@ while(timestep <= totalsteps){
     print(paste("No more infected cells present. Terminating simulation at timestep: ", timestep, sep=""))
     break
   }
-  
   if (logging){
     cat("Timestep: ", file=logFile, append=TRUE)  	
     cat(timestep, file=logFile, append=TRUE, sep = "\n")
   }
+  
   for (x in 2:(n-1)){
     for (y in 2:(n-1)){
       
@@ -431,6 +448,7 @@ while(timestep <= totalsteps){
   states_count[timestep+1,1] = sum(stateGrid[] == 1)
   states_count[timestep+1,2] = sum(stateGrid[] == 3)
   states_count[timestep+1,3] = sum(stateGrid[] == 2)
+  states_count[timestep+1,4] = sum(stateGrid[] == 4)
   
   infectedEpochsGrid[,] = sapply(grid[,], function(x) getInfected_epochs(x))
   infectedEpochs_count[timestep,0] = sum(infectedEpochsGrid[] == 0)
@@ -506,7 +524,7 @@ for (x in 1:num_grids){
   vis_matrix = do.call(cbind, stateGrid_list[x])
   
   #Color key: purple:healthy, blue:dead, yellow:infected
-  image(vis_matrix[,nrow(vis_matrix):1], col=c("purple","blue", "yellow"))
+  image(vis_matrix[,nrow(vis_matrix):1], col=c("purple","blue", "yellow", "red"))
   title(main = paste("Timestep ",x))
   
   dev.off()
@@ -517,6 +535,7 @@ number_of_cells = n*n
 Healthy = states_count[,1]
 Infected = states_count[,2]
 Dead = states_count[,3]
+Neutralized = states_count[,4]
 
 mypath <- file.path(paste(base_dest, "overview.png"))
 png(file=mypath)
@@ -533,15 +552,18 @@ plot(Infected,
      col="red", 
      xlab = "Weeks")
 lines(Dead, type="l", lty=1, lwd = 2, col="blue")
+lines(Neutralized, type="l", lty=1, lwd = 2, col="yellow")
 
 mtext("Simulation Overview", side=3, outer=TRUE, line=-3)
 
 
 dev.off()
+write.csv(states_count, file = paste(base_dest, "raw/", "states_count_raw.csv", sep = ""))
 
 remove(Healthy)
 remove(Infected)
 remove(Dead)
+remove(Neutralized)
 
 ############# Analysis: Cell Infected Epochs ###############
 # Line plot the infected epochs per cell over time. 
@@ -572,6 +594,8 @@ legend("topright",
        cex = .75)
 
 dev.off()
+
+write.csv(infectedEpochs_count, file = paste(base_dest, "raw/", "infectedEpochs_count_raw.csv", sep = ""))
 
 remove(Zero_eps)
 remove(One_eps)
@@ -625,6 +649,8 @@ legend("topright",
 
 dev.off()
 
+write.csv(resistance_count, file = paste(base_dest, "raw/", "resistance_count_raw.csv", sep = ""))
+
 remove(One_r)
 remove(Two_r)
 remove(Three_r)
@@ -645,3 +671,5 @@ plot(genotypes_count[,1],
 
 legend("topright", "# of Genotypes", lty= 1, lwd =2, col = "red" )
 dev.off()
+
+write.csv(genotypes_count, file = paste(base_dest, "raw/", "genotypes_count_raw.csv", sep = ""))
