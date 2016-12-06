@@ -359,241 +359,270 @@ while(timestep <= totalsteps){
         cat("Timestep: ", file=logFile, append=TRUE)
         cat(timestep, file=logFile, append=TRUE, sep = "\n")
     }
-    
+
     for (x in 4:(n-3)){
         for (y in 4:(n-3)){
 
-          # Rule 1
-          # If the cell is in H state and at least one of its neighbors
-          # is in I state then the cell becomes I with a probability of
-          # P_n1, P_n2, or P_n3 depending on which neighborhood the cell is 
-          # in (Conditions c1 and c2). The cell may also becomes I by
-          # randomly coming in contact with a virus from outside its
-          # neighborhood with a probability of P_v (Condition c3).
-          if(grid[[x,y]]@state == 1){
-            # Initialize all conditions as false
-            c1 = FALSE
-            c2 = FALSE
-            c3 = FALSE
+            # Rule 1
+            # In the following section  of code we evaluate the conditions for a 
+            # healthy cell to becombe infected. c1, c2, c3 represent those necessary
+            # conditions:
+            # c1: Probablity of infection has been met
+            # c2: There is an infected cell in the neighbourhood
+            # c3: Probabiliy of infection from outside the neighbourhood has been met 
+            if(grid[[x,y]]@state == 1){
+                # Initialize all conditions as false
+                c1 = FALSE
+                c2 = FALSE
+                c3 = FALSE
 
-            # Initialize helper variables.
-            # position: list of coordinates of infected cells in a given neighbourhood
-            # negihbourhood: neighbourhood being searched
-            position = list()
-            neighbourhood = ''
+                # Initialize helper variables.
+                # position: list of coordinates of infected cells in a given neighbourhood
+                # negihbourhood: neighbourhood being searched
+                position = list()
+                neighbourhood = ''
 
-            # Evaluate condition 2
-            # Extract submatrix of states of a cell's immediate negihbourhood
-            neighbourhood_1[,] = sapply(grid[c(x-1, x, x+1),
-                                             c(y-1, y, y+1)], function(x) getState(x))
-
-            # Create a list of all infected cells from extracted submatrix
-            position = which(neighbourhood_1 == 3, arr.ind = TRUE) - c(2,2)
-
-            # If there are no infected cells in the list, set condition 2 to false,
-            # otherwise to true
-            c2 = ifelse(length(position) == 0, FALSE, TRUE)
-
-            # If there are no infected cells in the immediate neighbourhood, consider
-            # a negihbourhood expanded by one cell
-            if(c2 == FALSE){
-                # Check neighbourhood expanded by 1
-                neighbourhood_2[,] = sapply(grid[c(x-2, x-1, x, x+1, x+2),
-                                                 c(y-2, y-1, y, y+1, y+2)], function(x) getState(x))
-
-                # Create a list of all infected cells from extracted submatrix 
-                position = which(neighbourhood_2 == 3, arr.ind = TRUE) - c(3,3)
+                # Evaluate condition 2
+                # Extract submatrix of states of a cell's immediate negihbourhood
+                neighbourhood_1[,] = sapply(grid[c(x-1, x, x+1),
+                                                 c(y-1, y, y+1)], function(x) getState(x))
 
                 # Create a list of all infected cells from extracted submatrix
+                position = which(neighbourhood_1 == 3, arr.ind = TRUE) - c(2,2)
+
+                # If there are no infected cells in the list, set condition 2 to false,
+                # otherwise to true
                 c2 = ifelse(length(position) == 0, FALSE, TRUE)
 
-                # If there are no infected cells in this expanded neighbourhood, consider
-                # a negihbourhood expanded by one more cell
+                # If there are no infected cells in the immediate neighbourhood, consider
+                # a negihbourhood expanded by one cell
                 if(c2 == FALSE){
-                    # Check neighbourhood expanded by 2
-                    neighbourhood_3[,] = sapply(grid[c(x-3, x-2, x-1, x, x+1, x+2, x+3),
-                                                     c(y-3, y-2, y-1, y, y+1, y+2, y+3)], function(x) getState(x))
+                    # Check neighbourhood expanded by 1
+                    neighbourhood_2[,] = sapply(grid[c(x-2, x-1, x, x+1, x+2),
+                                                     c(y-2, y-1, y, y+1, y+2)], function(x) getState(x))
 
-                    # Create a list of all infected cells from extracted submatrix                                  
-                    position = which(neighbourhood_3 == 3, arr.ind = TRUE) - c(4,4)
+                    # Create a list of all infected cells from extracted submatrix 
+                    position = which(neighbourhood_2 == 3, arr.ind = TRUE) - c(3,3)
 
                     # Create a list of all infected cells from extracted submatrix
                     c2 = ifelse(length(position) == 0, FALSE, TRUE)
 
                     # If there are no infected cells in this expanded neighbourhood, consider
-                    # infection coming from outside the neighbourhood. At this point the first
-                    # condition for infection (c1 && c2) is false because c2 is flase. 
-                    # Infection may only happen if c3 is true.
+                    # a negihbourhood expanded by one more cell
                     if(c2 == FALSE){
-                        c3 = runif(1)<=P_v
+                        # Check neighbourhood expanded by 2
+                        neighbourhood_3[,] = sapply(grid[c(x-3, x-2, x-1, x, x+1, x+2, x+3),
+                                                         c(y-3, y-2, y-1, y, y+1, y+2, y+3)], function(x) getState(x))
 
-                    # If an infected cell that can pass on the infection is found, set 
-                    # neighbourhood to the negihbourhood it was found in.    
-                    }else{neighbourhood = 'n3'}
-                }else{neighbourhood = 'n2'}
-            }else{neighbourhood = 'n1'}
+                        # Create a list of all infected cells from extracted submatrix                                  
+                        position = which(neighbourhood_3 == 3, arr.ind = TRUE) - c(4,4)
 
-            # Evaulate condition 1
-            # The probability of infection changes with the neighbourhood that the 
-            # infected cells is found in. Those probabilities are expressed as 
-            # Pi_n1, Pi_n2, and Pi_n3. We generate an random number Pi, and check if, 
-            # given a neighbourhood type, the infection is succesful. 
-            # For example if Pi_n1 = 0.6 (60% chance of infection), and Pi = 0.5, 
-            # infection is succesful, if Pi = 0.7, infection is not succesful.
-            Pi = runif(1)
-            switch(neighbourhood,
-               n1={ c1 = Pi <= Pi_n1 },
-               n2={ c1 = Pi > Pi_n1 && Pi <= Pi_n2 },
-               n3={ c1 = Pi > Pi_n2 && Pi <= Pi_n3 },
-               FALSE
-            )
+                        # Create a list of all infected cells from extracted submatrix
+                        c2 = ifelse(length(position) == 0, FALSE, TRUE)
+
+                        # If there are no infected cells in this expanded neighbourhood, consider
+                        # infection coming from outside the neighbourhood. At this point the first
+                        # condition for infection (c1 && c2) is false because c2 is flase. 
+                        # Infection may only happen if c3 is true.
+                        if(c2 == FALSE){
+                            c3 = runif(1)<=P_v
+
+                        # If an infected cell that can pass on the infection is found, set 
+                        # neighbourhood to the negihbourhood it was found in.    
+                        }else{neighbourhood = 'n3'}
+                    }else{neighbourhood = 'n2'}
+                }else{neighbourhood = 'n1'}
+
+                # Evaulate condition 1
+                # The probability of infection changes with the neighbourhood that the 
+                # infected cells is found in. Those probabilities are expressed as 
+                # Pi_n1, Pi_n2, and Pi_n3. We generate an random number Pi, and check if, 
+                # given a neighbourhood type, the infection is succesful. 
+                # For example if Pi_n1 = 0.6 (60% chance of infection), and Pi = 0.5, 
+                # infection is succesful, if Pi = 0.7, infection is not succesful.
+                # Return false if infection not succesful.
+                Pi = runif(1)
+                switch(neighbourhood,
+                   n1={ c1 = Pi <= Pi_n1 },
+                   n2={ c1 = Pi > Pi_n1 && Pi <= Pi_n2 },
+                   n3={ c1 = Pi > Pi_n2 && Pi <= Pi_n3 },
+                   FALSE
+                )
 
 
-        # Evaluate Rule 1
-        if((c1 && c2) || c3){
-          nextgrid[[x,y]]@state = 3
+                # Rule 1
+                # If the cell is in H state and at least one of its neighbors
+                # is in I state then the cell becomes I with a probability of
+                # P_n1, P_n2, or P_n3 depending on which neighborhood the cell is 
+                # in (Conditions c1 and c2). The cell may also becomes I by
+                # randomly coming in contact with a virus from outside its
+                # neighborhood with a probability of P_v (Condition c3).
+                if((c1 && c2) || c3){
+                    nextgrid[[x,y]]@state = 3
 
-          # If the infecting cell is from the neighbourhood, calculate correct
-          # indices and pass mutation map to the infected cell. If infection is
-          # coming from a remote cell, pick a random infected cell from the CA.
-          if (c2){
-            r = sample(1:nrow(position),1)
-            x_c = x + position[[r,1]]
-            y_c = y + position[[r,2]]
-          }else{
-            stateGrid[,] = sapply(grid[,], function(x) getState(x))
-            position = which(stateGrid[,] == 3, arr.ind = TRUE)
-            r = sample(1:nrow(position),1)
-            x_c = position[[r,1]]
-            y_c = position[[r,2]]
-          }
-          list2env(as.list.environment(grid[[x_c,y_c]]@mutations, all.names = TRUE),nextgrid[[x,y]]@mutations)
-          nextgrid[[x,y]]@resistance = grid[[x_c,y_c]]@resistance
+                    # If the infecting cell is from the neighbourhood, calculate correct
+                    # indices and pass mutation map to the infected cell. If infection is
+                    # coming from a remote cell, pick a random infected cell from the CA.
+                    if (c2){
+                        # From the infected cells in the neighbourhood, select one randomly
+                        # to pass on the infection to the healthy cell.
+                        r = sample(1:nrow(position),1)
 
-          # Generate mutations
-          for (z in 1:7){
-            # Generate mutation and save it in the cell mutations hashmap.
-            mutation_site = sample(1:hiv_total_aa,1)
-            mutation_aa = aa[sample(1:20, 1)]
-            nextgrid[[x,y]]@mutations[[as.character(mutation_site)]] = mutation_aa
+                        # Translate the coordinates from neighbourhood to grid reference system
+                        x_c = x + position[[r,1]]
+                        y_c = y + position[[r,2]]
+                    }else{
+                        # If infection comes from outside neighbourhood, list all infected cells,
+                        # then select one randomly.
+                        stateGrid[,] = sapply(grid[,], function(x) getState(x))
+                        position = which(stateGrid[,] == 3, arr.ind = TRUE)
+                        r = sample(1:nrow(position),1)
 
-            # If the mutation occurs at a drug resistance-conferring site, check if the
-            # amino acid it is mutating to grants resistance. If yes, increase cell
-            # resistance count, otherwise, decrease it.
-            potential_resistance = resistanceSites_env[[as.character(mutation_site)]]
-            if(!is.null(potential_resistance)){
-              present = mutation_aa %in% potential_resistance
+                        # Translate the coordinates from neighbourhood to grid reference system
+                        x_c = position[[r,1]]
+                        y_c = position[[r,2]]
+                    }
+                    # When a cell gets infected, it acquires the mutations carried by the cell
+                    # it is being infected by.
+                    list2env(as.list.environment(grid[[x_c,y_c]]@mutations, all.names = TRUE),nextgrid[[x,y]]@mutations)
 
-              if (present && (nextgrid[[x,y]]@resistance < 3)){
-                nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance+1
+                    # We also make its resistance attribute = to that of the infecting cell.
+                    nextgrid[[x,y]]@resistance = grid[[x_c,y_c]]@resistance
 
-                if(logging){
-                  cat("Resistance Acquired: ", file=logFile, append=TRUE)
-                  cat("(", file=logFile, append=TRUE)
-                  cat(timestep, file=logFile, append=TRUE)
-                  cat(",", file=logFile, append=TRUE)
-                  cat(x, file=logFile, append=TRUE)
-                  cat(",", file=logFile, append=TRUE)
-                  cat(y, file=logFile, append=TRUE)
-                  cat(") ", file=logFile, append=TRUE, sep = "\t" )
-                  cat(mutation_site, file=logFile, append=TRUE)
-                  cat(":", file=logFile, append=TRUE)
-                  cat(mutation_aa, file=logFile, append=TRUE, sep = "\n")
+                    # Upon infection of a healthy cell a new set of mutations is also generated
+                    # and appended to the list passed by the infecting cell.
+                    for (z in 1:7){
+                        # randomly select an amino acid, and a location.
+                        mutation_site = sample(1:hiv_total_aa,1)
+                        mutation_aa = aa[sample(1:20, 1)]
+
+                        # Add the the new key value pair in the mutation hashmap
+                        nextgrid[[x,y]]@mutations[[as.character(mutation_site)]] = mutation_aa
+
+                        # Extract possible drug resistance conferring mutation at generated site
+                        potential_resistance = resistanceSites_env[[as.character(mutation_site)]]
+
+                        # If there are possible canditates, check that the generated amino acids
+                        # appears among them. 
+                        if(!is.null(potential_resistance)){
+                            present = mutation_aa %in% potential_resistance
+
+                            # If yes, and resistance is not maxed out (at 3), then
+                            # increase resistance attribute. 
+                            if (present && (nextgrid[[x,y]]@resistance < 3)){
+                                nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance+1
+
+                                if(logging){
+                                cat("Resistance Acquired: ", file=logFile, append=TRUE)
+                                cat("(", file=logFile, append=TRUE)
+                                cat(timestep, file=logFile, append=TRUE)
+                                cat(",", file=logFile, append=TRUE)
+                                cat(x, file=logFile, append=TRUE)
+                                cat(",", file=logFile, append=TRUE)
+                                cat(y, file=logFile, append=TRUE)
+                                cat(") ", file=logFile, append=TRUE, sep = "\t" )
+                                cat(mutation_site, file=logFile, append=TRUE)
+                                cat(":", file=logFile, append=TRUE)
+                                cat(mutation_aa, file=logFile, append=TRUE, sep = "\n")
+                                }
+
+                            # If the mutation changed a drug resistance conferring mutation
+                            # into a non drug resistance conferring mutation, decrease
+                            # resistance attribute.
+                            }else if (!present && (nextgrid[[x,y]]@resistance > 0)){
+                                nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance-1
+                            }
+                        }
+                    }
+
+                    if(logging){
+                    cat("(", file=logFile, append=TRUE)
+                    cat(timestep-1, file=logFile, append=TRUE)
+                    cat(",", file=logFile, append=TRUE)
+                    cat(x_c, file=logFile, append=TRUE)
+                    cat(",", file=logFile, append=TRUE)
+                    cat(y_c, file=logFile, append=TRUE)
+                    cat(") ", file=logFile, append=TRUE, sep = "\t")
+
+                    cat("(", file=logFile, append=TRUE)
+                    cat(timestep, file=logFile, append=TRUE)
+                    cat(",", file=logFile, append=TRUE)
+                    cat(x, file=logFile, append=TRUE)
+                    cat(",", file=logFile, append=TRUE)
+                    cat(y, file=logFile, append=TRUE)
+                    cat(") ", file=logFile, append=TRUE)
+                    g = 1
+                    for (v in ls(nextgrid[[x,y]]@mutations)) {
+                      cat((ls(nextgrid[[x,y]]@mutations)[g]), file=logFile, append=TRUE)
+                      cat(":", file=logFile, append=TRUE)
+                      cat(nextgrid[[x,y]]@mutations[[v]], file=logFile, append=TRUE, sep = "\t")
+                      cat("   ", file=logFile, append=TRUE)
+                      g = g +1
+                    }
+                    cat(" ", file=logFile, append=TRUE, sep = "\n")
+                    }
+                }else{
+                    # If conditions c1, c2 and c3 cannot be adequately satisfied, the cell
+                    # remains in healthy state.
+                    nextgrid[[x,y]]@state = 1
                 }
-
-              }else if (!present && (nextgrid[[x,y]]@resistance > 0)){
-                nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance-1
-              }
-            }
-          }
-
-          if(logging){
-            cat("(", file=logFile, append=TRUE)
-            cat(timestep-1, file=logFile, append=TRUE)
-            cat(",", file=logFile, append=TRUE)
-            cat(x_c, file=logFile, append=TRUE)
-            cat(",", file=logFile, append=TRUE)
-            cat(y_c, file=logFile, append=TRUE)
-            cat(") ", file=logFile, append=TRUE, sep = "\t")
-
-            cat("(", file=logFile, append=TRUE)
-            cat(timestep, file=logFile, append=TRUE)
-            cat(",", file=logFile, append=TRUE)
-            cat(x, file=logFile, append=TRUE)
-            cat(",", file=logFile, append=TRUE)
-            cat(y, file=logFile, append=TRUE)
-            cat(") ", file=logFile, append=TRUE)
-            g = 1
-            for (v in ls(nextgrid[[x,y]]@mutations)) {
-              cat((ls(nextgrid[[x,y]]@mutations)[g]), file=logFile, append=TRUE)
-              cat(":", file=logFile, append=TRUE)
-              cat(nextgrid[[x,y]]@mutations[[v]], file=logFile, append=TRUE, sep = "\t")
-              cat("   ", file=logFile, append=TRUE)
-              g = g +1
-            }
-            cat(" ", file=logFile, append=TRUE, sep = "\n")
-          }
-        }else{
-          nextgrid[[x,y]]@state = 1
-        }
-        next
-      }#End Rule 1
+                next
+            }#End Rule 1
 
 
-      # Rule 3
-      # If the cell is in D state, then the cell will become H state
-      # with probability P_rep
-      if(grid[[x,y]]@state == 2){
-        strain = ifelse(strain_active, (is_capacity - (fatigue_ir*timestep))/100, 1)
-        if(runif(1) <= (P_rep*strain)){
-          nextgrid[[x,y]]@state = 1
-        }else{
-          nextgrid[[x,y]]@state = 2
-        }
-        next
-      }#End Rule 3
+            # Rule 3
+            # If the cell is in D state, then the cell will become H state
+            # with probability P_rep
+            if(grid[[x,y]]@state == 2){
+                strain = ifelse(strain_active, (is_capacity - (fatigue_ir*timestep))/100, 1)
+                if(runif(1) <= (P_rep*strain)){
+                    nextgrid[[x,y]]@state = 1
+                }else{
+                    nextgrid[[x,y]]@state = 2
+                }
+                next
+            }#End Rule 3
 
-    } #End inner for loop
-  } #End outer for loop
+        } #End inner for loop
+    } #End outer for loop
 
-  # Assign the updates of this timestep in nextgrid back to our grid
-  grid = nextgrid
+    # Assign the updates of this timestep in nextgrid back to our grid
+    grid = nextgrid
 
-  #Update aggregate counts
-  stateGrid[,] = sapply(grid[,], function(x) getState(x))
-  states_count[timestep+1,1] = sum(stateGrid[] == 1)
-  states_count[timestep+1,2] = sum(stateGrid[] == 3)
-  states_count[timestep+1,3] = sum(stateGrid[] == 2)
-  states_count[timestep+1,4] = sum(stateGrid[] == 4)
+    #Update aggregate counts
+    stateGrid[,] = sapply(grid[,], function(x) getState(x))
+    states_count[timestep+1,1] = sum(stateGrid[] == 1)
+    states_count[timestep+1,2] = sum(stateGrid[] == 3)
+    states_count[timestep+1,3] = sum(stateGrid[] == 2)
+    states_count[timestep+1,4] = sum(stateGrid[] == 4)
 
-  infectedEpochsGrid[,] = sapply(grid[,], function(x) getInfected_epochs(x))
-  infectedEpochs_count[timestep,0] = sum(infectedEpochsGrid[] == 0)
-  infectedEpochs_count[timestep,1] = sum(infectedEpochsGrid[] == 1)
-  infectedEpochs_count[timestep,2] = sum(infectedEpochsGrid[] == 2)
-  infectedEpochs_count[timestep,3] = sum(infectedEpochsGrid[] >= 3)
+    infectedEpochsGrid[,] = sapply(grid[,], function(x) getInfected_epochs(x))
+    infectedEpochs_count[timestep,0] = sum(infectedEpochsGrid[] == 0)
+    infectedEpochs_count[timestep,1] = sum(infectedEpochsGrid[] == 1)
+    infectedEpochs_count[timestep,2] = sum(infectedEpochsGrid[] == 2)
+    infectedEpochs_count[timestep,3] = sum(infectedEpochsGrid[] >= 3)
 
-  resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
-  resistance_count[timestep+1,1] = sum(resistanceGrid[] == 1)
-  resistance_count[timestep+1,2] = sum(resistanceGrid[] == 2)
-  resistance_count[timestep+1,3] = sum(resistanceGrid[] == 3)
+    resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
+    resistance_count[timestep+1,1] = sum(resistanceGrid[] == 1)
+    resistance_count[timestep+1,2] = sum(resistanceGrid[] == 2)
+    resistance_count[timestep+1,3] = sum(resistanceGrid[] == 3)
 
-  genotypes = sapply(grid[,], function(x) getMutations(x))
-  genotypes_count[timestep,1] = sum(sapply(genotypes, function (x) length(x)>0) == TRUE)
+    genotypes = sapply(grid[,], function(x) getMutations(x))
+    genotypes_count[timestep,1] = sum(sapply(genotypes, function (x) length(x)>0) == TRUE)
 
-  # Save plot of current state of the grid to variable
-  if(timestep %in% savesteps){
-    stateGrid_list[[k]] = stateGrid
-    resistanceGrid_list[[k]] = resistanceGrid
-    k = k + 1
-  }
+    # Save plot of current state of the grid to variable
+    if(timestep %in% savesteps){
+        stateGrid_list[[k]] = stateGrid
+        resistanceGrid_list[[k]] = resistanceGrid
+        k = k + 1
+    }
 
-  # Move to the next timestep
-  timestep = timestep+1
+    # Move to the next timestep
+    timestep = timestep+1
 
 } #End while loop
 
 ############# Clean-Up: CA and Simulation parameters ###############
-remove(P_HIV)
 remove(P_v)
 remove(P_rep)
 remove(tau)
@@ -629,33 +658,18 @@ remove(getState)
 remove(setState)
 remove(r)
 
-############# Analysis: Simulation Overview  ###############
+############# Write all simulation data to file  ###############
 write.csv(states_count, file = paste(base_dest, l, "/states_count_raw.csv", sep = ""))
-
-
-############# Analysis: Cell Infected Epochs ###############
 write.csv(infectedEpochs_count, file = paste(base_dest, l, "/infectedEpochs_count_raw.csv", sep = ""))
+write.csv(resistance_count, file = paste(base_dest, l, "/resistance_count_raw.csv", sep = ""))
+write.csv(genotypes_count, file = paste(base_dest, l, "/genotypes_count_raw.csv", sep = ""))
 
 remove(Zero_eps)
 remove(One_eps)
 remove(Two_eps)
 remove(Three_eps)
-
-############# Analysis: Cells with Resistance ###############
-
-# Plot the state of resistance while in progress.
-
-
-# Plot the number of cells with resistance over time.
-write.csv(resistance_count, file = paste(base_dest, l, "/resistance_count_raw.csv", sep = ""))
-
 remove(One_r)
 remove(Two_r)
 remove(Three_r)
-#remove(Overall_r)
-
-############# Analysis: Genotypes ###############
-write.csv(genotypes_count, file = paste(base_dest, l, "/genotypes_count_raw.csv", sep = ""))
-
 rm(list = ls(all = TRUE))
 }
