@@ -359,59 +359,94 @@ while(timestep <= totalsteps){
         cat("Timestep: ", file=logFile, append=TRUE)
         cat(timestep, file=logFile, append=TRUE, sep = "\n")
     }
+    
+    for (x in 4:(n-3)){
+        for (y in 4:(n-3)){
 
-  for (x in 4:(n-3)){
-    for (y in 4:(n-3)){
+          # Rule 1
+          # If the cell is in H state and at least one of its neighbors
+          # is in I state then the cell becomes I with a probability of
+          # P_n1, P_n2, or P_n3 depending on which neighborhood the cell is 
+          # in (Conditions c1 and c2). The cell may also becomes I by
+          # randomly coming in contact with a virus from outside its
+          # neighborhood with a probability of P_v (Condition c3).
+          if(grid[[x,y]]@state == 1){
+            # Initialize all conditions as false
+            c1 = FALSE
+            c2 = FALSE
+            c3 = FALSE
 
-      # Rule 1
-      # If the cell is in H state and at least one of its neighbors
-      # is in I state then the cell becomes I with a probability of
-      # P_i (Conditions c1 and c2). The cell may also becomes I1 by
-      # randomly coming in contact with a virus from outside its
-      # neighborhood with a probability of P_v (Condition c3).
-      if(grid[[x,y]]@state == 1){
-        c1 = FALSE
-        c2 = FALSE
-        c3 = FALSE
-        position = list()
-        neighbourhood = ''
+            # Initialize helper variables.
+            # position: list of coordinates of infected cells in a given neighbourhood
+            # negihbourhood: neighbourhood being searched
+            position = list()
+            neighbourhood = ''
 
+            # Evaluate condition 2
+            # Extract submatrix of states of a cell's immediate negihbourhood
+            neighbourhood_1[,] = sapply(grid[c(x-1, x, x+1),
+                                             c(y-1, y, y+1)], function(x) getState(x))
 
-        neighbourhood_1[,] = sapply(grid[c(x-1, x, x+1),
-                                         c(y-1, y, y+1)], function(x) getState(x))
+            # Create a list of all infected cells from extracted submatrix
+            position = which(neighbourhood_1 == 3, arr.ind = TRUE) - c(2,2)
 
-        position = which(neighbourhood_1 == 3, arr.ind = TRUE) - c(2,2)
-        c2 = ifelse(length(position) == 0, FALSE, TRUE)
-
-        if(c2 == FALSE){
-          #Check moore neighbourhood expanded by 1
-          neighbourhood_2[,] = sapply(grid[c(x-2, x-1, x, x+1, x+2),
-                                           c(y-2, y-1, y, y+1, y+2)], function(x) getState(x))
-          position = which(neighbourhood_2 == 3, arr.ind = TRUE) - c(3,3)
-          c2 = ifelse(length(position) == 0, FALSE, TRUE)
-
-          if(c2 == FALSE){
-            #Check moore neighbourhood expanded by 2
-            neighbourhood_3[,] = sapply(grid[c(x-3, x-2, x-1, x, x+1, x+2, x+3),
-                                             c(y-3, y-2, y-1, y, y+1, y+2, y+3)], function(x) getState(x))
-            position = which(neighbourhood_3 == 3, arr.ind = TRUE) - c(4,4)
+            # If there are no infected cells in the list, set condition 2 to false,
+            # otherwise to true
             c2 = ifelse(length(position) == 0, FALSE, TRUE)
 
+            # If there are no infected cells in the immediate neighbourhood, consider
+            # a negihbourhood expanded by one cell
             if(c2 == FALSE){
-              c3 = runif(1)<=P_v
+                # Check neighbourhood expanded by 1
+                neighbourhood_2[,] = sapply(grid[c(x-2, x-1, x, x+1, x+2),
+                                                 c(y-2, y-1, y, y+1, y+2)], function(x) getState(x))
 
-            }else{neighbourhood = 'n3'}
-          }else{neighbourhood = 'n2'}
-        }else{neighbourhood = 'n1'}
+                # Create a list of all infected cells from extracted submatrix 
+                position = which(neighbourhood_2 == 3, arr.ind = TRUE) - c(3,3)
 
+                # Create a list of all infected cells from extracted submatrix
+                c2 = ifelse(length(position) == 0, FALSE, TRUE)
 
-        Pi = runif(1)
-        switch(neighbourhood,
-           n1={ c1 = Pi <= Pi_n1 },
-           n2={ c1 = Pi > Pi_n1 && Pi <= Pi_n2 },
-           n3={ c1 = Pi > Pi_n2 && Pi <= Pi_n3 },
-           FALSE
-        )
+                # If there are no infected cells in this expanded neighbourhood, consider
+                # a negihbourhood expanded by one more cell
+                if(c2 == FALSE){
+                    # Check neighbourhood expanded by 2
+                    neighbourhood_3[,] = sapply(grid[c(x-3, x-2, x-1, x, x+1, x+2, x+3),
+                                                     c(y-3, y-2, y-1, y, y+1, y+2, y+3)], function(x) getState(x))
+
+                    # Create a list of all infected cells from extracted submatrix                                  
+                    position = which(neighbourhood_3 == 3, arr.ind = TRUE) - c(4,4)
+
+                    # Create a list of all infected cells from extracted submatrix
+                    c2 = ifelse(length(position) == 0, FALSE, TRUE)
+
+                    # If there are no infected cells in this expanded neighbourhood, consider
+                    # infection coming from outside the neighbourhood. At this point the first
+                    # condition for infection (c1 && c2) is false because c2 is flase. 
+                    # Infection may only happen if c3 is true.
+                    if(c2 == FALSE){
+                        c3 = runif(1)<=P_v
+
+                    # If an infected cell that can pass on the infection is found, set 
+                    # neighbourhood to the negihbourhood it was found in.    
+                    }else{neighbourhood = 'n3'}
+                }else{neighbourhood = 'n2'}
+            }else{neighbourhood = 'n1'}
+
+            # Evaulate condition 1
+            # The probability of infection changes with the neighbourhood that the 
+            # infected cells is found in. Those probabilities are expressed as 
+            # Pi_n1, Pi_n2, and Pi_n3. We generate an random number Pi, and check if, 
+            # given a neighbourhood type, the infection is succesful. 
+            # For example if Pi_n1 = 0.6 (60% chance of infection), and Pi = 0.5, 
+            # infection is succesful, if Pi = 0.7, infection is not succesful.
+            Pi = runif(1)
+            switch(neighbourhood,
+               n1={ c1 = Pi <= Pi_n1 },
+               n2={ c1 = Pi > Pi_n1 && Pi <= Pi_n2 },
+               n3={ c1 = Pi > Pi_n2 && Pi <= Pi_n3 },
+               FALSE
+            )
 
 
         # Evaluate Rule 1
