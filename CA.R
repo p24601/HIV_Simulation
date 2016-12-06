@@ -350,7 +350,9 @@ while(timestep <= totalsteps){
 
     stateGrid_list[[k]] = stateGrid
     k = k + 1
-
+    
+    # Check that the simulation has not run out of infected cells. If it has, 
+    # terminate simulation
     if(states_count[timestep,2] == 0){
         print(paste("No more infected cells present. Terminating simulation at timestep: ", timestep, sep=""))
         break
