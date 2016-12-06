@@ -71,6 +71,10 @@ cell <- setClass(
   "cell",
 
   # Define the slots
+  # state: one of Healthy(1), Infected(3), Neutralized(4), dead(2)
+  # infected_epochs: number of timesteps spent in state 3
+  # mutations: hash map of cell's mutations
+  # resistance: number of drugs cell is resistant to (0 to 3)      
   slots = c(
     state = "numeric",
     infected_epochs = "numeric",
