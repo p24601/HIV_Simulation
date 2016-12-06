@@ -152,6 +152,7 @@ setMethod(f = "getResistance", signature = "cell",
 # State 1: H:   Healthy
 # State 3: I_1: Infected
 # State 2: D:   Dead
+# State 4: N: Neutralized        
 
 # Parameters
 n = 100                         # grid dimensions n x n
