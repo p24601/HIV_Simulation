@@ -344,8 +344,15 @@ while(timestep <= totalsteps){
 
                 # Evaluate condition 2
                 # Extract submatrix of states of a cell's immediate negihbourhood
-                neighbourhood_1[,] = sapply(grid[c(x-1, x, x+1),
-                                                 c(y-1, y, y+1)], function(x) getState(x))
+                neighbourhood_1[,] = c( # Row 1
+                                        grid[[x-1,y-1]]@state, grid[[x,y-1]]@state,
+                                        grid[[x+1,y-1]]@state,
+                                        # Row 2
+                                        grid[[x-1,y]]@state, 0, grid[[x+1,y]]@state,
+                                        # Row 3
+                                        grid[[x-1,y+1]]@state, grid[[x,y+1]]@state,
+                                        grid[[x+1,y+1]]@state
+                                      )
 
                 # Create a list of all infected cells from extracted submatrix
                 position = which(neighbourhood_1 == 3, arr.ind = TRUE) - c(2,2)
@@ -358,8 +365,26 @@ while(timestep <= totalsteps){
                 # a negihbourhood expanded by one cell
                 if(c2 == FALSE){
                     # Check neighbourhood expanded by 1
-                    neighbourhood_2[,] = sapply(grid[c(x-2, x-1, x, x+1, x+2),
-                                                     c(y-2, y-1, y, y+1, y+2)], function(x) getState(x))
+                    neighbourhood_2[,] = c(   # Row 1
+                                              grid[[x-2,y-2]]@state, grid[[x-1,y-2]]@state,
+                                              grid[[x,y-2]]@state, grid[[x+1,y-2]]@state,
+                                              grid[[x+2,y-2]]@state,
+                                              # Row 2
+                                              grid[[x-2,y-1]]@state, grid[[x-1,y-1]]@state,
+                                              grid[[x,y-1]]@state, grid[[x+1,y-1]]@state,
+                                              grid[[x+2,y-1]]@state,
+                                              # Row 3
+                                              grid[[x-2,y]]@state, grid[[x-1,y]]@state,
+                                              0, grid[[x+1,y]]@state, grid[[x+2,y]]@state,
+                                              # Row 4
+                                              grid[[x-2,y+1]]@state, grid[[x-1,y+1]]@state,
+                                              grid[[x,y+1]]@state, grid[[x+1,y+1]]@state,
+                                              grid[[x+2,y+1]]@state,
+                                              # Row 5
+                                              grid[[x-2,y+2]]@state, grid[[x-1,y+2]]@state,
+                                              grid[[x,y+2]]@state, grid[[x+1,y+2]]@state,
+                                              grid[[x+2,y+2]]@state
+                                          )
 
                     # Create a list of all infected cells from extracted submatrix
                     position = which(neighbourhood_2 == 3, arr.ind = TRUE) - c(3,3)
@@ -371,8 +396,41 @@ while(timestep <= totalsteps){
                     # a negihbourhood expanded by one more cell
                     if(c2 == FALSE){
                         # Check neighbourhood expanded by 2
-                        neighbourhood_3[,] = sapply(grid[c(x-3, x-2, x-1, x, x+1, x+2, x+3),
-                                                         c(y-3, y-2, y-1, y, y+1, y+2, y+3)], function(x) getState(x))
+                        neighbourhood_3[,] = c(   # Row 1
+                                                  grid[[x-3,y-3]]@state, grid[[x-2,y-3]]@state,
+                                                  grid[[x-1,y-3]]@state, grid[[x,y-3]]@state,
+                                                  grid[[x+1,y-3]]@state, grid[[x+2,y-3]]@state,
+                                                  grid[[x+3,y-3]]@state,
+                                                  # Row 2
+                                                  grid[[x-3,y-2]]@state, grid[[x-2,y-2]]@state,
+                                                  grid[[x-1,y-2]]@state, grid[[x,y-2]]@state,
+                                                  grid[[x+1,y-2]]@state, grid[[x+2,y-2]]@state,
+                                                  grid[[x+3,y-2]]@state,
+                                                  # Row 3
+                                                  grid[[x-3,y-1]]@state, grid[[x-2,y-1]]@state,
+                                                  grid[[x-1,y-1]]@state, grid[[x,y-1]]@state,
+                                                  grid[[x+1,y-1]]@state, grid[[x+2,y-1]]@state,
+                                                  grid[[x+3,y-1]]@state,
+                                                  # Row 4
+                                                  grid[[x-3,y]]@state, grid[[x-2,y]]@state,
+                                                  grid[[x-1,y]]@state, 0, grid[[x+1,y]]@state,
+                                                  grid[[x+2,y]]@state, grid[[x+3,y]]@state,
+                                                  # Row 5
+                                                  grid[[x-3,y+1]]@state, grid[[x-2,y+1]]@state,
+                                                  grid[[x-1,y+1]]@state, grid[[x,y+1]]@state,
+                                                  grid[[x+1,y+1]]@state, grid[[x+2,y+1]]@state,
+                                                  grid[[x+3,y+1]]@state,
+                                                  # Row 6
+                                                  grid[[x-3,y+2]]@state, grid[[x-2,y+2]]@state,
+                                                  grid[[x-1,y+2]]@state, grid[[x,y+2]]@state,
+                                                  grid[[x+1,y+2]]@state, grid[[x+2,y+2]]@state,
+                                                  grid[[x+3,y+2]]@state,
+                                                  # Row 7
+                                                  grid[[x-3,y+3]]@state, grid[[x-2,y+3]]@state,
+                                                  grid[[x-1,y+3]]@state, grid[[x,y+3]]@state,
+                                                  grid[[x+1,y+3]]@state, grid[[x+2,y+3]]@state,
+                                                  grid[[x+3,y+3]]@state
+                                              )
 
                         # Create a list of all infected cells from extracted submatrix
                         position = which(neighbourhood_3 == 3, arr.ind = TRUE) - c(4,4)
@@ -406,7 +464,7 @@ while(timestep <= totalsteps){
                 # in (Conditions c1 and c2). The cell may also becomes I by
                 # randomly coming in contact with a virus from outside its
                 # neighborhood with a probability of P_v (Condition c3).
-                if((c1 || c3){
+                if(c1 || c3){
                     nextgrid[[x,y]]@state = 3
 
                     # If the infecting cell is from the neighbourhood, calculate correct
@@ -599,7 +657,6 @@ remove(potential_resistance)
 remove(present)
 remove(cell_resistance)
 remove(drug_efficiency)
-remove(resistanceSites_env)
 remove(grid)
 remove(nextgrid)
 remove(cell)
