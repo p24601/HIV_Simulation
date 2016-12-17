@@ -161,16 +161,9 @@ tau = 4                         # time delay for an I cell to become D
 hiv_total_aa = 3239             # Estimated total number of amino acids of the HIV-1 proteinome
 start_of_therapy = 20           # epoch at which to start drug therapy
 totalsteps = 200                # total number of weeks of simulation to be performed
-resiliance = 10                 # number of epochs before the start of phase 2 of infection
-strain_active = FALSE
 
 logging = FALSE
 if (logging){logFile = paste(base_dest, "log_file.txt", sep = "")}
-
-
-# Immune system parameters
-is_capacity = 100 + (resiliance/totalsteps)
-fatigue_ir = (is_capacity/totalsteps)
 
 # Vector of possible amino-acids
 aa = c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P",
@@ -581,8 +574,7 @@ while(timestep <= totalsteps){
             # If the cell is in D state, then the cell will become H state
             # with probability P_rep
             if(grid[[x,y]]@state == 2){
-                strain = ifelse(strain_active, (is_capacity - (fatigue_ir*timestep))/100, 1)
-                if(runif(1) <= (P_rep*strain)){
+                if(runif(1) <= (P_rep)){
                     nextgrid[[x,y]]@state = 1
                 }else{
                     nextgrid[[x,y]]@state = 2
