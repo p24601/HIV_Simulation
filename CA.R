@@ -9,7 +9,7 @@ base_drug_efficiency = 0.300     # base probability that the triple cocktail wil
 Pi_n1 = 0.54                     # probablity of infection in a cell's immediate negihbourhood
 Pi_n2 = 0.546                    # probablity of infection in a cell's immediate negihbourhood+1
 Pi_n3 = 0.549                    # probablity of infection in a cell's immediate negihbourhood+2
-P_v = 0.1                        # probablity of infection from elsewhere in the grid
+P_v = -1                        # probablity of infection from elsewhere in the grid
 
 # Generate simulation results subfolder for this run
 dir.create(paste(base_dest, l, sep = ""))
@@ -159,7 +159,7 @@ n = 100                         # grid dimensions n x n
 P_rep = 0.99                    # probability of dead cell being replaced by healthy
 tau = 4                         # time delay for an I cell to become D
 hiv_total_aa = 3239             # Estimated total number of amino acids of the HIV-1 proteinome
-start_of_therapy = 20           # epoch at which to start drug therapy
+start_of_therapy = 20*7         # epoch at which to start drug therapy
 totalsteps = 200                # total number of weeks of simulation to be performed
 
 logging = FALSE
@@ -206,7 +206,7 @@ neighbourhood_2 = matrix(nrow = 5, ncol = 5)
 neighbourhood_3 = matrix(nrow = 7, ncol = 7)
 
 # Initialize matrices to collect simulation results.
-states_count = matrix(0, nrow = (totalsteps*2), ncol = 4)
+states_count = matrix(0, nrow = totalsteps, ncol = 4)
 colnames(states_count) = c("Healthy", "Infected", "Dead", "Neutralized")
 
 infectedEpochsGrid = matrix(0, nrow = n, ncol = n)
@@ -214,7 +214,7 @@ infectedEpochs_count = matrix(0, nrow = totalsteps, ncol = 4)
 colnames(infectedEpochs_count) = c("0", "1", "2", "3")
 
 resistanceGrid = matrix(0, nrow = n, ncol = n)
-resistance_count = matrix(0, nrow = (totalsteps*2), ncol = 4)
+resistance_count = matrix(0, nrow = totalsteps, ncol = 4)
 colnames(resistance_count) = c("1", "2", "3", "Overall")
 
 genotypes_count = matrix(0, nrow = totalsteps, ncol = 1)
@@ -425,17 +425,18 @@ while(timestep <= totalsteps){
                         # Translate the coordinates from neighbourhood to grid reference system
                         x_c = x + position[[r,1]]
                         y_c = y + position[[r,2]]
-                    }else{
+                    }
+                    #else{
                         # If infection comes from outside neighbourhood, list all infected cells,
                         # then select one randomly.
-                        stateGrid[,] = sapply(grid[,], function(x) getState(x))
-                        position = which(stateGrid[,] == 3, arr.ind = TRUE)
-                        r = sample(1:nrow(position),1)
+                    #    stateGrid[,] = sapply(grid[,], function(x) getState(x))
+                    #    position = which(stateGrid[,] == 3, arr.ind = TRUE)
+                    #    r = sample(1:nrow(position),1)
 
                         # Translate the coordinates from neighbourhood to grid reference system
-                        x_c = position[[r,1]]
-                        y_c = position[[r,2]]
-                    }
+                    #    x_c = position[[r,1]]
+                    #    y_c = position[[r,2]]
+                    #}
                     # When a cell gets infected, it acquires the mutations carried by the cell
                     # it is being infected by.
                     list2env(as.list.environment(grid[[x_c,y_c]]@mutations, all.names = TRUE),nextgrid[[x,y]]@mutations)
