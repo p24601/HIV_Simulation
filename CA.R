@@ -445,49 +445,49 @@ while(timestep <= totalsteps){
 
                     # Upon infection of a healthy cell a new set of mutations is also generated
                     # and appended to the list passed by the infecting cell.
-                    for (z in 1:7){
-                        # randomly select an amino acid, and a location.
-                        mutation_site = sample(1:hiv_total_aa,1)
-                        mutation_aa = aa[sample(1:20, 1)]
 
-                        # Add the the new key value pair in the mutation hashmap
-                        nextgrid[[x,y]]@mutations[[as.character(mutation_site)]] = mutation_aa
+                    # randomly select an amino acid, and a location.
+                    mutation_site = sample(1:hiv_total_aa,1)
+                    mutation_aa = aa[sample(1:20, 1)]
 
-                        # Extract possible drug resistance conferring mutation at generated site
-                        potential_resistance = resistanceSites_env[[as.character(mutation_site)]]
+                    # Add the the new key value pair in the mutation hashmap
+                    nextgrid[[x,y]]@mutations[[as.character(mutation_site)]] = mutation_aa
 
-                        # If there are possible canditates, check that the generated amino acids
-                        # appears among them.
-                        if(!is.null(potential_resistance)){
-                            present = mutation_aa %in% potential_resistance
+                    # Extract possible drug resistance conferring mutation at generated site
+                    potential_resistance = resistanceSites_env[[as.character(mutation_site)]]
 
-                            # If yes, and resistance is not maxed out (at 3), then
-                            # increase resistance attribute.
-                            if (present && (nextgrid[[x,y]]@resistance < 3)){
-                                nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance+1
+                    # If there are possible canditates, check that the generated amino acids
+                    # appears among them.
+                    if(!is.null(potential_resistance)){
+                        present = mutation_aa %in% potential_resistance
 
-                                if(logging){
-                                    cat("Resistance Acquired: ", file=logFile, append=TRUE)
-                                    cat("(", file=logFile, append=TRUE)
-                                    cat(timestep, file=logFile, append=TRUE)
-                                    cat(",", file=logFile, append=TRUE)
-                                    cat(x, file=logFile, append=TRUE)
-                                    cat(",", file=logFile, append=TRUE)
-                                    cat(y, file=logFile, append=TRUE)
-                                    cat(") ", file=logFile, append=TRUE, sep = "\t" )
-                                    cat(mutation_site, file=logFile, append=TRUE)
-                                    cat(":", file=logFile, append=TRUE)
-                                    cat(mutation_aa, file=logFile, append=TRUE, sep = "\n")
-                                }
+                        # If yes, and resistance is not maxed out (at 3), then
+                        # increase resistance attribute.
+                        if (present && (nextgrid[[x,y]]@resistance < 3)){
+                            nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance+1
 
-                            # If the mutation changed a drug resistance conferring mutation
-                            # into a non drug resistance conferring mutation, decrease
-                            # resistance attribute.
-                            }else if (!present && (nextgrid[[x,y]]@resistance > 0)){
-                                nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance-1
+                            if(logging){
+                                cat("Resistance Acquired: ", file=logFile, append=TRUE)
+                                cat("(", file=logFile, append=TRUE)
+                                cat(timestep, file=logFile, append=TRUE)
+                                cat(",", file=logFile, append=TRUE)
+                                cat(x, file=logFile, append=TRUE)
+                                cat(",", file=logFile, append=TRUE)
+                                cat(y, file=logFile, append=TRUE)
+                                cat(") ", file=logFile, append=TRUE, sep = "\t" )
+                                cat(mutation_site, file=logFile, append=TRUE)
+                                cat(":", file=logFile, append=TRUE)
+                                cat(mutation_aa, file=logFile, append=TRUE, sep = "\n")
                             }
+
+                        # If the mutation changed a drug resistance conferring mutation
+                        # into a non drug resistance conferring mutation, decrease
+                        # resistance attribute.
+                        }else if (!present && (nextgrid[[x,y]]@resistance > 0)){
+                            nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance-1
                         }
                     }
+
 
                     if(logging){
                         cat("(", file=logFile, append=TRUE)
