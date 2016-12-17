@@ -2,9 +2,9 @@
 for (l in 1:10){
 
         # base_dest: folder directory for depositing simulation results. Must match
-        # the base_drug_efficiency for the simulation. 
+        # the base_drug_efficiency for the simulation.
         base_dest = "/home/pcervell/hiv_simulation/results_1/300/"
-        
+
 base_drug_efficiency = 0.300     # base probability that the triple cocktail will kill and infected cell
 Pi_n1 = 0.54                     # probablity of infection in a cell's immediate negihbourhood
 Pi_n2 = 0.546                    # probablity of infection in a cell's immediate negihbourhood+1
@@ -20,8 +20,8 @@ library(hash)
 library(plyr)
 
 ############# Drug resistance-conferring mutations #############
-# Drugs are represented as key value pairs where the key is the position of the AA 
-# prone to conferring resistance, and the value represents the mutant AA that 
+# Drugs are represented as key value pairs where the key is the position of the AA
+# prone to conferring resistance, and the value represents the mutant AA that
 # confers resistance. (Ex: "74" = "V" means that a V at position 74 confers resistance,
 # and "65" = c("R", "E", "N") means that either an R, E, or N at position 65 confer resistance.)
 # Key value pairs are entered as reported in the "2014 IAS update on hiv drug resistance mutations"
@@ -52,7 +52,7 @@ darunavir_list  = list("471" = "I", "492" = "I", "493" = "F", "507" = "V", "510"
 
 # Build a complete hashmap of resistance sites (resistanceSites_env)
 # Drug combinations simulated:
-# 1) 
+# 1)
 # 2)
 # 3)
 resistanceSites_list = append(lamivudine_list, zidovudine_list)
@@ -74,7 +74,7 @@ cell <- setClass(
   # state: one of Healthy(1), Infected(3), Neutralized(4), dead(2)
   # infected_epochs: number of timesteps spent in state 3
   # mutations: hash map of cell's mutations
-  # resistance: number of drugs cell is resistant to (0 to 3)      
+  # resistance: number of drugs cell is resistant to (0 to 3)
   slots = c(
     state = "numeric",
     infected_epochs = "numeric",
@@ -149,10 +149,10 @@ setMethod(f = "getResistance", signature = "cell",
 
 ############# CA States and Parameters ###############
 # States
-# State 1: H:   Healthy
-# State 3: I_1: Infected
-# State 2: D:   Dead
-# State 4: N: Neutralized        
+# State 1: H: Healthy
+# State 3: I: Infected
+# State 2: D: Dead
+# State 4: N: Neutralized
 
 # Parameters
 n = 100                         # grid dimensions n x n
@@ -233,10 +233,12 @@ while(timestep <= totalsteps){
     # The edge values are all set to H state so that it does not affect
     # Rule 1 of the CA for cells next to them
 
-    # Each timestep, the CA grid is updated based on 4 rules. Rules are not however
-    # applied all at the same time. States 3 and 4 (infected and neutralized) are 
-    # evaluated first over the whole grid, and states 1 and 2 take place in a subsequent
-    # separate loop.
+    # Each timestep, the CA grid is updated based on 4 rules.
+    # Rules
+    # Rule 1: H -> I
+    # Rule 2: D -> H
+    # Rule 3: I -> D
+    # Rule 4: I -> N
     for (x in 4:(n-3)){
         for (y in 4:(n-3)){
 
@@ -257,11 +259,11 @@ while(timestep <= totalsteps){
                 cell_resistance = grid[[x,y]]@resistance
 
                 # Calculate the killing efficiency of the triple cocktail for this cell
-                # If the timestep at which therapy begins has not been reached drug efficiency = -1, 
-                # otherwise, it is = base_drug_efficiency * (3 - cell_resistance) 
+                # If the timestep at which therapy begins has not been reached drug efficiency = -1,
+                # otherwise, it is = base_drug_efficiency * (3 - cell_resistance)
                 drug_efficiency = ifelse(timestep >= start_of_therapy, (base_drug_efficiency * (3 - cell_resistance)), -1)
 
-                # If a cell has for tau timesteps, it is at the end of its life cycle. 
+                # If a cell has for tau timesteps, it is at the end of its life cycle.
                 # The cell state is set to dead, its attributes are reset to 0, and its
                 # mutation map to empty.
                 if(grid[[x,y]]@infected_epochs >= tau){
@@ -275,8 +277,8 @@ while(timestep <= totalsteps){
                     # If a cell dies, its mutations are lost
                     nextgrid[[x,y]]@mutations = new.env(hash = TRUE)
 
-                # After the start of drug therapy, infected cells can be neutralized with Pr 
-                # dependent on the amount of drug resistance accumulated. The more resistance, 
+                # After the start of drug therapy, infected cells can be neutralized with Pr
+                # dependent on the amount of drug resistance accumulated. The more resistance,
                 # the less likely to be neutralized. A neutralized infected cell, cannot spread infection.
                 }else if(runif(1) <= drug_efficiency){
                     # Grid is updated immediately to allow Rules 1 and 3 to complete immediately after
@@ -288,15 +290,15 @@ while(timestep <= totalsteps){
 
                 # If an infected cell is not killed, or neutralized, it remains in infected state
                 # No new mutations are assigned. This only happens when a healthy cell becomes
-                # infected.    
+                # infected.
                 }else{
-                    # NextGrid is updated to set up for the next timestep    
+                    # NextGrid is updated to set up for the next timestep
                     nextgrid[[x,y]]@state = 3
                     nextgrid[[x,y]]@infected_epochs = grid[[x,y]]@infected_epochs+1
 
                     # Cell's mutation map is copied over to the same cell in nextgrid
                     list2env(as.list.environment(grid[[x,y]]@mutations, all.names = TRUE),nextgrid[[x,y]]@mutations)
-                    
+
                 }#End else
                 next
             }#End Rule 2
@@ -329,47 +331,14 @@ while(timestep <= totalsteps){
                 }
                 next
             }
-        }
-    }
-
-    #Reporting after Rule 2 and 4
-    resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
-    resistance_count[timestep,1] = sum(resistanceGrid[] == 1)
-    resistance_count[timestep,2] = sum(resistanceGrid[] == 2)
-    resistance_count[timestep,3] = sum(resistanceGrid[] == 3)
-    resistanceGrid_list[[k]] = resistanceGrid
-
-
-    stateGrid[,] = sapply(grid[,], function(x) getState(x))
-    states_count[timestep,1] = sum(stateGrid[] == 1)
-    states_count[timestep,2] = sum(stateGrid[] == 3)
-    states_count[timestep,3] = sum(stateGrid[] == 2)
-    states_count[timestep,4] = sum(stateGrid[] == 4)
-
-    stateGrid_list[[k]] = stateGrid
-    k = k + 1
-    
-    # Check that the simulation has not run out of infected cells. If it has, 
-    # terminate simulation
-    if(states_count[timestep,2] == 0){
-        print(paste("No more infected cells present. Terminating simulation at timestep: ", timestep, sep=""))
-        break
-    }
-    if (logging){
-        cat("Timestep: ", file=logFile, append=TRUE)
-        cat(timestep, file=logFile, append=TRUE, sep = "\n")
-    }
-
-    for (x in 4:(n-3)){
-        for (y in 4:(n-3)){
 
             # Rule 1
-            # In the following section  of code we evaluate the conditions for a 
+            # In the following section  of code we evaluate the conditions for a
             # healthy cell to becombe infected. c1, c2, c3 represent those necessary
             # conditions:
             # c1: Probablity of infection has been met
             # c2: There is an infected cell in the neighbourhood
-            # c3: Probabiliy of infection from outside the neighbourhood has been met 
+            # c3: Probabiliy of infection from outside the neighbourhood has been met
             if(grid[[x,y]]@state == 1){
                 # Initialize all conditions as false
                 c1 = FALSE
@@ -401,7 +370,7 @@ while(timestep <= totalsteps){
                     neighbourhood_2[,] = sapply(grid[c(x-2, x-1, x, x+1, x+2),
                                                      c(y-2, y-1, y, y+1, y+2)], function(x) getState(x))
 
-                    # Create a list of all infected cells from extracted submatrix 
+                    # Create a list of all infected cells from extracted submatrix
                     position = which(neighbourhood_2 == 3, arr.ind = TRUE) - c(3,3)
 
                     # Create a list of all infected cells from extracted submatrix
@@ -414,7 +383,7 @@ while(timestep <= totalsteps){
                         neighbourhood_3[,] = sapply(grid[c(x-3, x-2, x-1, x, x+1, x+2, x+3),
                                                          c(y-3, y-2, y-1, y, y+1, y+2, y+3)], function(x) getState(x))
 
-                        # Create a list of all infected cells from extracted submatrix                                  
+                        # Create a list of all infected cells from extracted submatrix
                         position = which(neighbourhood_3 == 3, arr.ind = TRUE) - c(4,4)
 
                         # Create a list of all infected cells from extracted submatrix
@@ -422,23 +391,23 @@ while(timestep <= totalsteps){
 
                         # If there are no infected cells in this expanded neighbourhood, consider
                         # infection coming from outside the neighbourhood. At this point the first
-                        # condition for infection (c1 && c2) is false because c2 is flase. 
+                        # condition for infection (c1 && c2) is false because c2 is flase.
                         # Infection may only happen if c3 is true.
                         if(c2 == FALSE){
                             c3 = runif(1)<=P_v
 
-                        # If an infected cell that can pass on the infection is found, set 
-                        # neighbourhood to the negihbourhood it was found in.    
+                        # If an infected cell that can pass on the infection is found, set
+                        # neighbourhood to the negihbourhood it was found in.
                         }else{neighbourhood = 'n3'}
                     }else{neighbourhood = 'n2'}
                 }else{neighbourhood = 'n1'}
 
                 # Evaulate condition 1
-                # The probability of infection changes with the neighbourhood that the 
-                # infected cells is found in. Those probabilities are expressed as 
-                # Pi_n1, Pi_n2, and Pi_n3. We generate an random number Pi, and check if, 
-                # given a neighbourhood type, the infection is succesful. 
-                # For example if Pi_n1 = 0.6 (60% chance of infection), and Pi = 0.5, 
+                # The probability of infection changes with the neighbourhood that the
+                # infected cells is found in. Those probabilities are expressed as
+                # Pi_n1, Pi_n2, and Pi_n3. We generate an random number Pi, and check if,
+                # given a neighbourhood type, the infection is succesful.
+                # For example if Pi_n1 = 0.6 (60% chance of infection), and Pi = 0.5,
                 # infection is succesful, if Pi = 0.7, infection is not succesful.
                 # Return false if infection not succesful.
                 Pi = runif(1)
@@ -453,7 +422,7 @@ while(timestep <= totalsteps){
                 # Rule 1
                 # If the cell is in H state and at least one of its neighbors
                 # is in I state then the cell becomes I with a probability of
-                # P_n1, P_n2, or P_n3 depending on which neighborhood the cell is 
+                # P_n1, P_n2, or P_n3 depending on which neighborhood the cell is
                 # in (Conditions c1 and c2). The cell may also becomes I by
                 # randomly coming in contact with a virus from outside its
                 # neighborhood with a probability of P_v (Condition c3).
@@ -503,12 +472,12 @@ while(timestep <= totalsteps){
                         potential_resistance = resistanceSites_env[[as.character(mutation_site)]]
 
                         # If there are possible canditates, check that the generated amino acids
-                        # appears among them. 
+                        # appears among them.
                         if(!is.null(potential_resistance)){
                             present = mutation_aa %in% potential_resistance
 
                             # If yes, and resistance is not maxed out (at 3), then
-                            # increase resistance attribute. 
+                            # increase resistance attribute.
                             if (present && (nextgrid[[x,y]]@resistance < 3)){
                                 nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance+1
 
