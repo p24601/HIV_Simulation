@@ -392,28 +392,17 @@ while(timestep <= totalsteps){
                         if(c2 == FALSE){
                             c3 = runif(1)<=P_v
 
-                        # If an infected cell that can pass on the infection is found, set
-                        # neighbourhood to the negihbourhood it was found in.
-                        }else{neighbourhood = 'n3'}
-                    }else{neighbourhood = 'n2'}
-                }else{neighbourhood = 'n1'}
-
-                # Evaulate condition 1
-                # The probability of infection changes with the neighbourhood that the
-                # infected cells is found in. Those probabilities are expressed as
-                # Pi_n1, Pi_n2, and Pi_n3. We generate an random number Pi, and check if,
-                # given a neighbourhood type, the infection is succesful.
-                # For example if Pi_n1 = 0.6 (60% chance of infection), and Pi = 0.5,
-                # infection is succesful, if Pi = 0.7, infection is not succesful.
-                # Return false if infection not succesful.
-                Pi = runif(1)
-                switch(neighbourhood,
-                   n1={ c1 = Pi <= Pi_n1 },
-                   n2={ c1 = Pi > Pi_n1 && Pi <= Pi_n2 },
-                   n3={ c1 = Pi > Pi_n2 && Pi <= Pi_n3 },
-                   FALSE
-                )
-
+                        # If an infected cell that can pass on the infection is found, evaluate
+                        # condition 1:
+                        # The probability of infection changes with the neighbourhood that the
+                        # infected cells is found in. Those probabilities are expressed as
+                        # Pi_n1, Pi_n2, and Pi_n3. We generate an random number Pi, and check if,
+                        # given a neighbourhood type, the infection is succesful.
+                        # For example if Pi_n1 = 0.6 (60% chance of infection), and Pi = 0.5,
+                        # infection is succesful, if Pi = 0.7, infection is not succesful.
+                        }else{c1 = runif(1) <= Pi_n3}
+                    }else{c1 = runif(1) <= Pi_n2}
+                }else{c1 = runif(1) <= Pi_n1}
 
                 # Rule 1
                 # If the cell is in H state and at least one of its neighbors
@@ -422,7 +411,7 @@ while(timestep <= totalsteps){
                 # in (Conditions c1 and c2). The cell may also becomes I by
                 # randomly coming in contact with a virus from outside its
                 # neighborhood with a probability of P_v (Condition c3).
-                if((c1 && c2) || c3){
+                if((c1 || c3){
                     nextgrid[[x,y]]@state = 3
 
                     # If the infecting cell is from the neighbourhood, calculate correct
@@ -478,17 +467,17 @@ while(timestep <= totalsteps){
                                 nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance+1
 
                                 if(logging){
-                                cat("Resistance Acquired: ", file=logFile, append=TRUE)
-                                cat("(", file=logFile, append=TRUE)
-                                cat(timestep, file=logFile, append=TRUE)
-                                cat(",", file=logFile, append=TRUE)
-                                cat(x, file=logFile, append=TRUE)
-                                cat(",", file=logFile, append=TRUE)
-                                cat(y, file=logFile, append=TRUE)
-                                cat(") ", file=logFile, append=TRUE, sep = "\t" )
-                                cat(mutation_site, file=logFile, append=TRUE)
-                                cat(":", file=logFile, append=TRUE)
-                                cat(mutation_aa, file=logFile, append=TRUE, sep = "\n")
+                                    cat("Resistance Acquired: ", file=logFile, append=TRUE)
+                                    cat("(", file=logFile, append=TRUE)
+                                    cat(timestep, file=logFile, append=TRUE)
+                                    cat(",", file=logFile, append=TRUE)
+                                    cat(x, file=logFile, append=TRUE)
+                                    cat(",", file=logFile, append=TRUE)
+                                    cat(y, file=logFile, append=TRUE)
+                                    cat(") ", file=logFile, append=TRUE, sep = "\t" )
+                                    cat(mutation_site, file=logFile, append=TRUE)
+                                    cat(":", file=logFile, append=TRUE)
+                                    cat(mutation_aa, file=logFile, append=TRUE, sep = "\n")
                                 }
 
                             # If the mutation changed a drug resistance conferring mutation
@@ -501,30 +490,30 @@ while(timestep <= totalsteps){
                     }
 
                     if(logging){
-                    cat("(", file=logFile, append=TRUE)
-                    cat(timestep-1, file=logFile, append=TRUE)
-                    cat(",", file=logFile, append=TRUE)
-                    cat(x_c, file=logFile, append=TRUE)
-                    cat(",", file=logFile, append=TRUE)
-                    cat(y_c, file=logFile, append=TRUE)
-                    cat(") ", file=logFile, append=TRUE, sep = "\t")
+                        cat("(", file=logFile, append=TRUE)
+                        cat(timestep-1, file=logFile, append=TRUE)
+                        cat(",", file=logFile, append=TRUE)
+                        cat(x_c, file=logFile, append=TRUE)
+                        cat(",", file=logFile, append=TRUE)
+                        cat(y_c, file=logFile, append=TRUE)
+                        cat(") ", file=logFile, append=TRUE, sep = "\t")
 
-                    cat("(", file=logFile, append=TRUE)
-                    cat(timestep, file=logFile, append=TRUE)
-                    cat(",", file=logFile, append=TRUE)
-                    cat(x, file=logFile, append=TRUE)
-                    cat(",", file=logFile, append=TRUE)
-                    cat(y, file=logFile, append=TRUE)
-                    cat(") ", file=logFile, append=TRUE)
-                    g = 1
-                    for (v in ls(nextgrid[[x,y]]@mutations)) {
-                      cat((ls(nextgrid[[x,y]]@mutations)[g]), file=logFile, append=TRUE)
-                      cat(":", file=logFile, append=TRUE)
-                      cat(nextgrid[[x,y]]@mutations[[v]], file=logFile, append=TRUE, sep = "\t")
-                      cat("   ", file=logFile, append=TRUE)
-                      g = g +1
-                    }
-                    cat(" ", file=logFile, append=TRUE, sep = "\n")
+                        cat("(", file=logFile, append=TRUE)
+                        cat(timestep, file=logFile, append=TRUE)
+                        cat(",", file=logFile, append=TRUE)
+                        cat(x, file=logFile, append=TRUE)
+                        cat(",", file=logFile, append=TRUE)
+                        cat(y, file=logFile, append=TRUE)
+                        cat(") ", file=logFile, append=TRUE)
+                        g = 1
+                        for (v in ls(nextgrid[[x,y]]@mutations)) {
+                          cat((ls(nextgrid[[x,y]]@mutations)[g]), file=logFile, append=TRUE)
+                          cat(":", file=logFile, append=TRUE)
+                          cat(nextgrid[[x,y]]@mutations[[v]], file=logFile, append=TRUE, sep = "\t")
+                          cat("   ", file=logFile, append=TRUE)
+                          g = g +1
+                        }
+                        cat(" ", file=logFile, append=TRUE, sep = "\n")
                     }
                 }else{
                     # If conditions c1, c2 and c3 cannot be adequately satisfied, the cell
