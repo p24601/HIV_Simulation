@@ -258,11 +258,6 @@ while(timestep <= totalsteps){
                 # Extract cell drug resistance attribute
                 cell_resistance = grid[[x,y]]@resistance
 
-                # Calculate the killing efficiency of the triple cocktail for this cell
-                # If the timestep at which therapy begins has not been reached drug efficiency = -1,
-                # otherwise, it is = base_drug_efficiency * (3 - cell_resistance)
-                drug_efficiency = ifelse(timestep >= start_of_therapy, (base_drug_efficiency * (3 - cell_resistance)), -1)
-
                 # If a cell has for tau timesteps, it is at the end of its life cycle.
                 # The cell state is set to dead, its attributes are reset to 0, and its
                 # mutation map to empty.
@@ -280,7 +275,8 @@ while(timestep <= totalsteps){
                 # After the start of drug therapy, infected cells can be neutralized with Pr
                 # dependent on the amount of drug resistance accumulated. The more resistance,
                 # the less likely to be neutralized. A neutralized infected cell, cannot spread infection.
-                }else if(runif(1) <= drug_efficiency){
+                # The probablity of becoming neutralized is calculated as base_drug_efficiency * (3 - cell_resistance)
+                }else if((timestep >= start_of_therapy) & (runif(1) <= (base_drug_efficiency * (3 - cell_resistance)))){
                     # Grid is updated immediately to allow Rules 1 and 3 to complete immediately after
                     grid[[x,y]]@state = 4
 
