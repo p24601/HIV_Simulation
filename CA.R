@@ -144,18 +144,18 @@ setMethod(f = "getResistance", signature = "cell",
 
 ############# CA States and Parameters ###############
 # States
-# State 1: H: Healthy
-# State 3: I: Infected
-# State 2: D: Dead
-# State 4: N: Neutralized
+Healthy     = 1
+Dead        = 2
+Infected    = 3
+Neutralized = 4
 
 # Parameters
-n = 100                         # grid dimensions n x n
-P_rep = 0.99                    # probability of dead cell being replaced by healthy
-tau = 4                         # time delay for an I cell to become D
-hiv_total_aa = 3239             # Estimated total number of amino acids of the HIV-1 proteinome
-start_of_therapy = 20*7         # epoch at which to start drug therapy
-totalsteps = 200                # total number of weeks of simulation to be performed
+n                = 100       # grid dimensions n x n
+P_rep            = 0.99      # probability of dead cell being replaced by healthy
+tau              = 4         # time delay for an I cell to become D
+hiv_total_aa     = 3239      # Estimated total number of amino acids of the HIV-1 proteinome
+start_of_therapy = 20*7      # epoch at which to start drug therapy
+totalsteps       = 200       # total number of weeks of simulation to be performed
 
 logging = FALSE
 if (logging){logFile = paste(base_dest, "log_file.txt", sep = "")}
@@ -243,7 +243,7 @@ while(timestep <= totalsteps){
             # If a cell has been in this state for tau timesteps or does not
             # have sufficient drug resistance, the cell becomes D state (dead).
             # In this case the accumulated mutations are lost (2.b)
-            if((grid[[x,y]]@state == 3)){
+            if((grid[[x,y]]@state == Infected)){
 
                 # Drug resistance is simplified by assuming all drugs are equally efficient,
                 # and letting each single succesful mutation represent resistance to a single drug.
@@ -299,7 +299,7 @@ while(timestep <= totalsteps){
             # A cell that enters neutralized state will remain in neutralized
             # state until it has lived tau timesteps and finally transition to
             # state dead.
-            if((grid[[x,y]]@state == 4)){
+            if((grid[[x,y]]@state == Neutralized)){
                 # Kill neutralized cell if it has lived enough epochs
                 if(grid[[x,y]]@infected_epochs >= tau){
                     # Grid is updated immediately to allow Rules 1 and 3 to complete immediately after
@@ -330,7 +330,7 @@ while(timestep <= totalsteps){
             # c1: Probablity of infection has been met
             # c2: There is an infected cell in the neighbourhood
             # c3: Probabiliy of infection from outside the neighbourhood has been met
-            if(grid[[x,y]]@state == 1){
+            if(grid[[x,y]]@state == Healthy){
                 # Initialize all conditions as false
                 c1 = FALSE
                 c2 = FALSE
@@ -526,7 +526,7 @@ while(timestep <= totalsteps){
             # Rule 3
             # If the cell is in D state, then the cell will become H state
             # with probability P_rep
-            if(grid[[x,y]]@state == 2){
+            if(grid[[x,y]]@state == Dead){
                 if(runif(1) <= (P_rep)){
                     nextgrid[[x,y]]@state = 1
                 }else{
@@ -543,10 +543,10 @@ while(timestep <= totalsteps){
 
     #Update aggregate counts
     stateGrid[,] = sapply(grid[,], function(x) getState(x))
-    states_count[timestep+1,1] = sum(stateGrid[] == 1)
-    states_count[timestep+1,2] = sum(stateGrid[] == 3)
-    states_count[timestep+1,3] = sum(stateGrid[] == 2)
-    states_count[timestep+1,4] = sum(stateGrid[] == 4)
+    states_count[timestep,1] = sum(stateGrid[] == 1)
+    states_count[timestep,2] = sum(stateGrid[] == 3)
+    states_count[timestep,3] = sum(stateGrid[] == 2)
+    states_count[timestep,4] = sum(stateGrid[] == 4)
 
     infectedEpochsGrid[,] = sapply(grid[,], function(x) getInfected_epochs(x))
     infectedEpochs_count[timestep,0] = sum(infectedEpochsGrid[] == 0)
@@ -555,9 +555,9 @@ while(timestep <= totalsteps){
     infectedEpochs_count[timestep,3] = sum(infectedEpochsGrid[] >= 3)
 
     resistanceGrid[,] = sapply(grid[,], function(x) getResistance(x))
-    resistance_count[timestep+1,1] = sum(resistanceGrid[] == 1)
-    resistance_count[timestep+1,2] = sum(resistanceGrid[] == 2)
-    resistance_count[timestep+1,3] = sum(resistanceGrid[] == 3)
+    resistance_count[timestep,1] = sum(resistanceGrid[] == 1)
+    resistance_count[timestep,2] = sum(resistanceGrid[] == 2)
+    resistance_count[timestep,3] = sum(resistanceGrid[] == 3)
 
     genotypes = sapply(grid[,], function(x) getMutations(x))
     genotypes_count[timestep,1] = sum(sapply(genotypes, function (x) length(x)>0) == TRUE)
