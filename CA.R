@@ -55,15 +55,10 @@ darunavir_list  = list("471" = "I", "492" = "I", "493" = "F", "507" = "V", "510"
 # 1)
 # 2)
 # 3)
-resistanceSites_list = append(lamivudine_list, zidovudine_list)
-resistanceSites_list = append(resistanceSites_list, efavirenz_list)
-resistanceSites_env  = list2env(resistanceSites_list)
+resistanceSites_drug1  = list2env(lamivudine_list)
+resistanceSites_drug2  = list2env(zidovudine_list)
+resistanceSites_drug3  = list2env(efavirenz_list)
 
-# Once a master list of mutations is created remove unused lists from memory
-remove(lamivudine_list)
-remove(zidovudine_list)
-remove(efavirenz_list)
-remove(resistanceSites_list)
 
 ############# Cell Class Definition and Methods ###############
 cell <- setClass(
@@ -455,18 +450,25 @@ while(timestep <= totalsteps){
                     nextgrid[[x,y]]@mutations[[as.character(mutation_site)]] = mutation_aa
 
                     # Extract possible drug resistance conferring mutation at generated site
-                    potential_resistance = resistanceSites_env[[as.character(mutation_site)]]
+                    potential_resistance = c(resistanceSites_drug1[[as.character(mutation_site)]],
+                                             resistanceSites_drug2[[as.character(mutation_site)]],
+                                             resistanceSites_drug3[[as.character(mutation_site)]])
 
                     # If there are possible canditates, check that the generated amino acids
                     # appears among them.
                     if(!is.null(potential_resistance)){
-                        present = mutation_aa %in% potential_resistance
+                        # Count the how many of the drugs, this mutation provides resistance to 1-3
+                        present = sum(potential_resistance == mutation_aa)
 
-                        # If yes, and resistance is not maxed out (at 3), then
-                        # increase resistance attribute.
-                        if (present && (nextgrid[[x,y]]@resistance < 3)){
-                            nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance+1
+                        # If present = 0, the mutation changed a drug resistance conferring mutation
+                        # into a non drug resistance conferring mutation. Therefore, we decrease the
+                        # resistance attribute.
+                        if ((present == 0) && (nextgrid[[x,y]]@resistance > 0)){
+                            nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance-1
 
+                        # Otherwise we increase the resistance parameter by the number of drugs affected
+                        # by this muation. The resistance parameter can increase to a maximum of 3.
+                        }else{
                             if(logging){
                                 cat("Resistance Acquired: ", file=logFile, append=TRUE)
                                 cat("(", file=logFile, append=TRUE)
@@ -480,12 +482,8 @@ while(timestep <= totalsteps){
                                 cat(":", file=logFile, append=TRUE)
                                 cat(mutation_aa, file=logFile, append=TRUE, sep = "\n")
                             }
-
-                        # If the mutation changed a drug resistance conferring mutation
-                        # into a non drug resistance conferring mutation, decrease
-                        # resistance attribute.
-                        }else if (!present && (nextgrid[[x,y]]@resistance > 0)){
-                            nextgrid[[x,y]]@resistance = nextgrid[[x,y]]@resistance-1
+                            new_resistance = nextgrid[[x,y]]@resistance+present
+                            nextgrid[[x,y]]@resistance = ifelse(new_resistance > 3, 3, new_resistance)
                         }
                     }
 
