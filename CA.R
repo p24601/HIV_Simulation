@@ -7,8 +7,8 @@ for (l in 1:10){
 
 base_drug_efficiency = 0.300     # base probability that the triple cocktail will kill and infected cell
 Pi_n1 = 0.54                     # probablity of infection in a cell's immediate negihbourhood
-Pi_n2 = 0.546                    # probablity of infection in a cell's immediate negihbourhood+1
-Pi_n3 = 0.549                    # probablity of infection in a cell's immediate negihbourhood+2
+Pi_n2 = 0.006                    # probablity of infection in a cell's immediate negihbourhood+1
+Pi_n3 = 0.009                    # probablity of infection in a cell's immediate negihbourhood+2
 P_v = -1                        # probablity of infection from elsewhere in the grid
 
 # Generate simulation results subfolder for this run
